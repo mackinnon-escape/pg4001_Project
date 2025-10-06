@@ -1,27 +1,85 @@
 #include "Engine.h"
-
 #include "SDL3/SDL.h"
+#include "Colours.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
 
-Engine::Engine() : screenWidth(WINDOW_WIDTH), screenHeight(WINDOW_HEIGHT)
+// Singleton Implementation
+Engine* Engine::GetInstance()
 {
-    initTcod();
+    if (Engine::instance == nullptr)
+    {
+        Engine::instance = new Engine(WINDOW_WIDTH, WINDOW_HEIGHT);
+    }
+    return Engine::instance;
+}
+
+Engine::Engine(int width, int height) : screenWidth(width), screenHeight(height)
+{
+    InitTcod();
+}
+
+Engine::~Engine()
+{
+    Engine::instance = nullptr;
 }
 
 void Engine::Run()
 {
-    // This is our traditional game loop
-    while (true) 
+    while (true)
     {
+        HandleInput();
         Update();
         Render();
         context.present(console);
     }
 }
 
-void Engine::initTcod()
+void Engine::HandleInput()
+{
+    inputHandler.ClearKey();
+    inputHandler.CheckForEvent();
+    if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
+    {
+        std::exit(0);
+    }
+}
+
+void Engine::Update()
+{
+    int dx{ 0 };
+    int dy{ 0 };
+    switch (inputHandler.GetKeyCode())
+    {
+    case SDLK_UP: dy = -1; break;
+    case SDLK_DOWN: dy = 1; break;
+    case SDLK_LEFT: dx = -1; break;
+    case SDLK_RIGHT: dx = 1; break;
+    default:
+        break;
+    }
+
+    if (dx != 0 || dy != 0)
+    {
+        Point newLocation = playerLocation + Point{ dx, dy };
+        if (newLocation.x >= 0 && newLocation.x < screenWidth &&
+            newLocation.y >= 0 && newLocation.y < screenHeight)
+        {
+            playerLocation = newLocation;
+        }
+    }
+}
+
+void Engine::Render()
+{
+    console.clear();
+    console.at(playerLocation.x, playerLocation.y).ch = '@';
+    console.at(playerLocation.x, playerLocation.y).fg = WHITE;
+}
+
+// InitTcod() remains unchanged from previous lab
+void Engine::InitTcod()
 {
     console = tcod::Console{ screenWidth, screenHeight };  // Main console.
     auto tileset = tcod::load_tilesheet("dejavu32x8.png", { 32, 8 }, tcod::CHARMAP_TCOD);
@@ -36,19 +94,4 @@ void Engine::initTcod()
     params.vsync = 1;
     params.sdl_window_flags = SDL_WINDOW_RESIZABLE;
     context = tcod::Context(params);
-}
-
-void Engine::Render() 
-{
-    console.clear();
-
-    console.at(40, 25).ch = '@';
-    console.at(40, 25).fg = tcod::ColorRGB{255, 255, 255};
-
-}
-
-void Engine::Update()
-{
-    // we don't have anything here yet. 
-    // This method will be run every frame
 }
