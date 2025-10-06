@@ -1,8 +1,9 @@
+#define SDL_MAIN_HANDLED
+#include <SDL3/SDL_main.h>
 #include "Engine.h"
 
-int main() 
+int main()
 {
-    Engine engine;
-    engine.Run();
+    Engine::GetInstance()->Run();
     return 0;
 }
