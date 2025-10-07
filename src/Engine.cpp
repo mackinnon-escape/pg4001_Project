@@ -39,9 +39,8 @@ Engine::~Engine()
 
 void Engine::Init()
 {
-    player = new Actor(Point{ 40,25 }, '@', WHITE);
+    player = new Actor(Point::Zero, '@', WHITE);  // Temporary position
     actors.push_back(player);
-    actors.push_back(new Actor(Point{ 60, 13 }, '&', YELLOW));    // push another actor onto the list
 
     map->Init();
 }
@@ -96,6 +95,7 @@ void Engine::Update()
 
 void Engine::Render()
 {
+    ITCODBspCallback* thing;
     console.clear();
 
     map->Render();

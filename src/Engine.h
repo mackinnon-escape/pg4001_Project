@@ -24,6 +24,7 @@ public:
     void Run();
 
     tcod::Console console;
+    Actor* player;
 
 private:
     Input inputHandler{};
@@ -32,7 +33,6 @@ private:
     tcod::Context context;
     Point playerLocation{ 40, 25 };
     std::vector<Actor*> actors;
-    Actor* player;
     Map* map;
 
     void Init();
