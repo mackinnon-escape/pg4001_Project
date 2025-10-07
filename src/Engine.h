@@ -2,6 +2,10 @@
 #include "libtcod.h"
 #include "Input.h"
 #include "Point.h"
+#include <vector>
+
+class Actor;
+class Map;
 
 class Engine
 {
@@ -19,14 +23,19 @@ public:
 public:
     void Run();
 
+    tcod::Console console;
+
 private:
     Input inputHandler{};
     int screenWidth;
     int screenHeight;
-    tcod::Console console;
     tcod::Context context;
     Point playerLocation{ 40, 25 };
+    std::vector<Actor*> actors;
+    Actor* player;
+    Map* map;
 
+    void Init();
     void InitTcod();
     void HandleInput();
     void Update();

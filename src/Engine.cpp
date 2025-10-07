@@ -1,9 +1,13 @@
 #include "Engine.h"
 #include "SDL3/SDL.h"
 #include "Colours.h"
+#include "Actor.h"
+#include "Map.h"
+#include "Point.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
+static constexpr int GUI_HEIGHT{ 7 };
 
 // Singleton Implementation
 Engine* Engine::GetInstance()
@@ -15,18 +19,37 @@ Engine* Engine::GetInstance()
     return Engine::instance;
 }
 
-Engine::Engine(int width, int height) : screenWidth(width), screenHeight(height)
+Engine::Engine(int width, int height) : player(nullptr), map(nullptr), screenWidth(width), screenHeight(height)
 {
     InitTcod();
+    map = new Map(screenWidth, screenHeight - GUI_HEIGHT);
 }
 
 Engine::~Engine()
 {
+    for (auto actor : actors)
+    {
+        delete actor;
+    }
+    actors.clear();
+
+    delete map;
     Engine::instance = nullptr;
+}
+
+void Engine::Init()
+{
+    player = new Actor(Point{ 40,25 }, '@', WHITE);
+    actors.push_back(player);
+    actors.push_back(new Actor(Point{ 60, 13 }, '&', YELLOW));    // push another actor onto the list
+
+    map->Init();
 }
 
 void Engine::Run()
 {
+    Init();
+
     while (true)
     {
         HandleInput();
@@ -62,11 +85,11 @@ void Engine::Update()
 
     if (dx != 0 || dy != 0)
     {
-        Point newLocation = playerLocation + Point{ dx, dy };
-        if (newLocation.x >= 0 && newLocation.x < screenWidth &&
-            newLocation.y >= 0 && newLocation.y < screenHeight)
+        Point dp{ dx, dy };
+        Point target{ player->GetLocation() + dp };
+        if (target.x >= 0 && target.x < screenWidth && target.y >= 0 && target.y < screenHeight && !map->IsWall(target))
         {
-            playerLocation = newLocation;
+            player->SetLocation(target);
         }
     }
 }
@@ -74,8 +97,12 @@ void Engine::Update()
 void Engine::Render()
 {
     console.clear();
-    console.at(playerLocation.x, playerLocation.y).ch = '@';
-    console.at(playerLocation.x, playerLocation.y).fg = WHITE;
+
+    map->Render();
+    for (auto actor : actors)
+    {
+        actor->Render();
+    }
 }
 
 // InitTcod() remains unchanged from previous lab
