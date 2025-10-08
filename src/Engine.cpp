@@ -86,16 +86,22 @@ void Engine::Update()
     {
         Point dp{ dx, dy };
         Point target{ player->GetLocation() + dp };
+        computeFov = true;
         if (target.x >= 0 && target.x < screenWidth && target.y >= 0 && target.y < screenHeight && !map->IsWall(target))
         {
             player->SetLocation(target);
         }
     }
+
+    if (computeFov)
+    {
+        computeFov = false;
+        map->ComputeFov();
+    }
 }
 
 void Engine::Render()
 {
-    ITCODBspCallback* thing;
     console.clear();
 
     map->Render();

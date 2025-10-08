@@ -8,7 +8,7 @@
 struct Tile
 {
     Tile() {}
-    bool canWalk{ false };
+    bool explored{ false }; // has the player already seen this tile ?
 };
 
 class Map
@@ -20,15 +20,18 @@ public:
     void Init();
     bool IsWall(const Point& position) const;
     void Render() const;
+    bool IsInFov(const Point& location) const;
+    bool IsExplored(const Point& location) const;
+    void ComputeFov() const;
 private:
     Tile* tiles{ nullptr };
     int width;
     int height;
-    long seed;                    // NEW: Random seed for reproducible generation
-    TCODRandom* rng{ nullptr };     // NEW: Random number generator
-    friend class BspCallback;    // NEW: Allow BspCallback access to private members
+    long seed;
+    TCODRandom* rng{ nullptr };
+    TCODMap* map{ nullptr };
+    friend class BspCallback;
 
-    void SetWall(const Point& p);
     void Dig(const Point& corner1, const Point& corner2) const;        // NEW
     void CreateRoom(const bool first, const Point& corner1, const Point& corner2) const;  // NEW
 };

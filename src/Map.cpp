@@ -14,6 +14,7 @@ Map::Map(int width, int height) : width(width), height(height)
 Map::~Map()
 {
     delete[] tiles;
+    delete map;
 }
 
 void Map::Init()
@@ -25,33 +26,65 @@ void Map::Init()
 
     BspCallback listener(*this);
     rng = new TCODRandom(seed, TCOD_RNG_CMWC);
+    map = new TCODMap(width, height);
     bsp.splitRecursive(rng, 8, ROOM_MAX_SIZE, ROOM_MAX_SIZE, 1.5f, 1.5f);
     bsp.traverseInvertedLevelOrder(&listener, nullptr);
 }
 
 bool Map::IsWall(const Point& position) const
 {
-    return !tiles[position.x + position.y * width].canWalk;
-}
-
-void Map::SetWall(const Point& p)
-{
-    tiles[p.x + p.y * width].canWalk = false;
+    return !map->isWalkable(position.x, position.y);
 }
 
 void Map::Render() const
 {
     static constexpr tcod::ColorRGB darkWall(0, 0, 100);
     static constexpr tcod::ColorRGB darkGround(50, 50, 150);
+    static constexpr tcod::ColorRGB lightWall(130, 110, 50);   // Visible walls
+    static constexpr tcod::ColorRGB lightGround(200, 180, 50); // Visible floors
 
     for (int x = 0; x < width; x++)
     {
         for (int y = 0; y < height; y++)
         {
             Point p{ x, y };
-            Engine::GetInstance()->console.at(x, y).bg = IsWall(p) ? darkWall : darkGround;
+            if (IsInFov(p))
+            {
+                // Currently visible - bright colors
+                Engine::GetInstance()->console.at(x, y).bg = IsWall(p) ? lightWall : lightGround;
+            }
+            else if (IsExplored(p))
+            {
+                // Previously seen - dim colors
+                Engine::GetInstance()->console.at(x, y).bg = IsWall(p) ? darkWall : darkGround;
+            }
+            // Unseen areas remain black (default background)
         }
     }
+}
+
+bool Map::IsExplored(const Point& location) const
+{
+    return tiles[location.x + location.y * width].explored;
+}
+
+bool Map::IsInFov(const Point& location) const
+{
+    if (location.x < 0 || location.x >= width || location.y < 0 || location.y >= height) return false;
+
+    if (map->isInFov(location.x, location.y))
+    {
+        tiles[location.x + location.y * width].explored = true;  // Mark as explored
+        return true;
+    }
+    return false;
+}
+
+void Map::ComputeFov() const
+{
+    map->computeFov(Engine::GetInstance()->player->GetLocation().x,
+        Engine::GetInstance()->player->GetLocation().y,
+        Engine::GetInstance()->fovRadius);
 }
 
 /*
@@ -76,7 +109,7 @@ void Map::Dig(const Point& corner1, const Point& corner2) const
     {
         for (int tileY = UpperRight.y; tileY <= LowerLeft.y; tileY++)
         {
-            tiles[tileX + tileY * width].canWalk = true;
+            map->setProperties(tileX, tileY, true, true);  // transparent=true, walkable=true
         }
     }
 }

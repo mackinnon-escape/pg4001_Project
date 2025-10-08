@@ -25,6 +25,7 @@ public:
 
     tcod::Console console;
     Actor* player;
+    int fovRadius{ 10 };	// how far can the player see?
 
 private:
     Input inputHandler{};
@@ -34,6 +35,7 @@ private:
     Point playerLocation{ 40, 25 };
     std::vector<Actor*> actors;
     Map* map;
+    bool computeFov{ true };
 
     void Init();
     void InitTcod();
