@@ -39,10 +39,10 @@ Engine::~Engine()
 
 void Engine::Init()
 {
-    player = new Actor(Point::Zero, '@', WHITE);  // Temporary position
+    player = new Actor(Point::Zero, '@', "player", WHITE);
     actors.push_back(player);
 
-    map->Init();
+    map->Init(true);
 }
 
 void Engine::Run()
@@ -72,6 +72,12 @@ void Engine::Update()
 {
     int dx{ 0 };
     int dy{ 0 };
+    if (gameStatus == STARTUP)
+    {
+        map->ComputeFov();
+    }
+    gameStatus = IDLE;
+
     switch (inputHandler.GetKeyCode())
     {
     case SDLK_UP: dy = -1; break;
@@ -85,18 +91,11 @@ void Engine::Update()
     if (dx != 0 || dy != 0)
     {
         Point dp{ dx, dy };
-        Point target{ player->GetLocation() + dp };
-        computeFov = true;
-        if (target.x >= 0 && target.x < screenWidth && target.y >= 0 && target.y < screenHeight && !map->IsWall(target))
+        if (player->Move(player->GetLocation() + dp))
         {
-            player->SetLocation(target);
+            map->ComputeFov();
         }
-    }
-
-    if (computeFov)
-    {
-        computeFov = false;
-        map->ComputeFov();
+        gameStatus = Engine::NEW_TURN;
     }
 }
 
@@ -107,7 +106,10 @@ void Engine::Render()
     map->Render();
     for (auto actor : actors)
     {
-        actor->Render();
+        if (map->IsInFov(actor->GetLocation()))
+        {
+            actor->Render();
+        }
     }
 }
 

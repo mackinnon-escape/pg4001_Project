@@ -17,8 +17,9 @@ public:
     Map(int width, int height);
     virtual ~Map();
 
-    void Init();
+    void Init(bool withActors);
     bool IsWall(const Point& position) const;
+    bool CanWalk(const Point& position) const;
     void Render() const;
     bool IsInFov(const Point& location) const;
     bool IsExplored(const Point& location) const;
@@ -32,15 +33,16 @@ private:
     TCODMap* map{ nullptr };
     friend class BspCallback;
 
-    void Dig(const Point& corner1, const Point& corner2) const;        // NEW
-    void CreateRoom(const bool first, const Point& corner1, const Point& corner2) const;  // NEW
+    void Dig(const Point& corner1, const Point& corner2) const;
+    void CreateRoom(const bool first, const Point& corner1, const Point& corner2, bool withActors) const;
+    void AddMonster(const Point& location) const;
 };
 
 class BspCallback : public ITCODBspCallback
 {
 private:
     Map& map;                    // Reference to map to modify
-    int roomNumber;                 // Room counter for first room detection
+    int roomNumber{ 0 };         // Room counter for first room detection
     Point previousLocation{};   // Center of the last room created
 
 public:

@@ -2,7 +2,9 @@
 
 #include "Engine.h"
 #include "Actor.h"
+#include "Colours.h"
 
+static constexpr int MAX_ROOM_MONSTERS = 3;
 static constexpr int ROOM_MAX_SIZE{ 12 };
 static constexpr int ROOM_MIN_SIZE{ 6 };
 
@@ -17,7 +19,7 @@ Map::~Map()
     delete map;
 }
 
-void Map::Init()
+void Map::Init(bool withActors)
 {
     TCODBsp bsp(0, 0, width, height);
 
@@ -28,7 +30,7 @@ void Map::Init()
     rng = new TCODRandom(seed, TCOD_RNG_CMWC);
     map = new TCODMap(width, height);
     bsp.splitRecursive(rng, 8, ROOM_MAX_SIZE, ROOM_MAX_SIZE, 1.5f, 1.5f);
-    bsp.traverseInvertedLevelOrder(&listener, nullptr);
+    bsp.traverseInvertedLevelOrder(&listener, static_cast<void*>(&withActors));
 }
 
 bool Map::IsWall(const Point& position) const
@@ -61,6 +63,15 @@ void Map::Render() const
             // Unseen areas remain black (default background)
         }
     }
+}
+
+bool Map::CanWalk(const Point& position) const
+{
+    if (IsWall(position))
+    {
+        return false;    // this is a wall
+    }
+    return true;
 }
 
 bool Map::IsExplored(const Point& location) const
@@ -114,8 +125,10 @@ void Map::Dig(const Point& corner1, const Point& corner2) const
     }
 }
 
-void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner2) const
+void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner2, bool withActors) const
 {
+    if (!withActors) { return; }	// skip out from making actors if withActors is false
+
     Dig(corner1, corner2);
     Point middleOfRoom{ (corner1 + corner2) / 2 };
 
@@ -124,9 +137,38 @@ void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner
     {
         Engine::GetInstance()->player->SetLocation(middleOfRoom);
     }
+    else
+    {
+        int MonstersToAdd = rng->getInt(0, MAX_ROOM_MONSTERS);
+        while (MonstersToAdd > 0)
+        {
+            Point p{ rng->getInt(corner1.x, corner2.x), rng->getInt(corner1.y, corner2.y) };
+            if (CanWalk(p))
+            {
+                AddMonster(p);
+            }
+            MonstersToAdd--;
+        }
+    }
 }
 
-bool BspCallback::visitNode(TCODBsp* node, void*)
+void Map::AddMonster(const Point& location) const
+{
+    if (rng->getInt(0, 100) < 80)
+    {
+        // create an orc
+        Actor* orc = new Actor(location, 'o', "orc", DESATURATED_GREEN);
+        Engine::GetInstance()->actors.push_back(orc);
+    }
+    else
+    {
+        // create a troll
+        Actor* troll = new Actor(location, 'T', "troll", DARKER_GREEN);
+        Engine::GetInstance()->actors.push_back(troll);
+    }
+}
+
+bool BspCallback::visitNode(TCODBsp* node, void* userData)
 {
     if (node->isLeaf())
     {
@@ -137,7 +179,9 @@ bool BspCallback::visitNode(TCODBsp* node, void*)
         int y{ map.rng->getInt(node->y + 1, node->y + node->h - h - 1) };
         Point upperLeft{ x,y };
         Point lowerRight{ x + w - 1, y + h - 1 };
-        map.CreateRoom(roomNumber == 0, upperLeft, lowerRight);
+        bool withActors = static_cast<bool>(userData);
+        map.CreateRoom(roomNumber == 0, upperLeft, lowerRight, withActors);
+
 
         Point roomMiddle{ x + w / 2, y + h / 2 };
         if (roomNumber != 0)

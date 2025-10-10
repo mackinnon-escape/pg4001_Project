@@ -9,6 +9,8 @@ class Map;
 
 class Engine
 {
+public:
+    enum GameStatus { STARTUP, IDLE, NEW_TURN, VICTORY, DEFEAT } gameStatus{ STARTUP };
     // Singleton Pattern
 private:
     inline static Engine* instance{ nullptr };
@@ -26,15 +28,14 @@ public:
     tcod::Console console;
     Actor* player;
     int fovRadius{ 10 };	// how far can the player see?
+    std::vector<Actor*> actors;
+    Map* map;
 
 private:
     Input inputHandler{};
     int screenWidth;
     int screenHeight;
     tcod::Context context;
-    Point playerLocation{ 40, 25 };
-    std::vector<Actor*> actors;
-    Map* map;
     bool computeFov{ true };
 
     void Init();
