@@ -1,11 +1,11 @@
 #include "Ai.h"
 
-// #include <array>
-
 #include "Actor.h"
 #include "Engine.h"
 #include "Map.h"
 #include "Point.h"
+#include "Gui.h"
+#include "Colours.h"
 
 void PlayerAi::Update(Actor* owner)
 {
@@ -42,8 +42,18 @@ bool PlayerAi::MoveOrAttack(Actor* owner, const Point& target)
     {
         if (actor->IsAlive() && actor->IsIn(target))
         {
-            owner->Attack(actor);
+            owner->Attack(owner, actor);
             return false;
+        }
+    }
+
+    // look for corpses or items
+    for (auto actor : Engine::GetInstance()->actors)  // new section
+    {
+        bool corpse = actor->IsDead();
+        if (corpse && actor->IsIn(target))
+        {
+            Engine::GetInstance()->gui->SendMessage(LIGHT_GREY, "There's a %s here", actor->name.c_str());
         }
     }
 
@@ -81,9 +91,7 @@ void MonsterAi::MoveOrAttack(Actor* owner, const Point& target)
     int dy{ target.y - owner->GetLocation().y };
     int stepDx{ dx > 0 ? 1 : -1 };
     int stepDy{ dy > 0 ? 1 : -1 };
-
     float distance{ sqrtf(static_cast<float>(dx * dx + dy * dy)) };
-
     if (distance >= 2)
     {
         dx = static_cast<int>(round(static_cast<float>(dx) / distance));
@@ -107,6 +115,6 @@ void MonsterAi::MoveOrAttack(Actor* owner, const Point& target)
     }
     else if (owner->attacker)
     {
-        owner->attacker->Attack(Engine::GetInstance()->player);
+        owner->attacker->Attack(owner, Engine::GetInstance()->player);
     }
 }

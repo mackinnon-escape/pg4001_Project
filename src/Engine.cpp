@@ -1,4 +1,8 @@
 #include "Engine.h"
+
+//#include <iostream>
+//#include <cstdlib>
+
 #include "SDL3/SDL.h"
 #include "Colours.h"
 #include "Actor.h"
@@ -7,6 +11,7 @@
 #include "Destructible.h"
 #include "Attacker.h"
 #include "Ai.h"
+#include "Gui.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
@@ -25,6 +30,7 @@ Engine* Engine::GetInstance()
 Engine::Engine(int width, int height) : player(nullptr), map(nullptr), screenWidth(width), screenHeight(height)
 {
     InitTcod();
+    gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
     map = new Map(screenWidth, screenHeight - GUI_HEIGHT);
 }
 
@@ -37,6 +43,7 @@ Engine::~Engine()
     actors.clear();
 
     delete map;
+    delete gui;
     Engine::instance = nullptr;
 }
 
@@ -49,6 +56,11 @@ void Engine::Init()
     actors.push_back(player);
 
     map->Init(true);
+    if (gameStatus == STARTUP)
+    {
+        map->ComputeFov();
+    }
+    gameStatus = IDLE;
 }
 
 void Engine::Run()
@@ -67,7 +79,7 @@ void Engine::Run()
 void Engine::HandleInput()
 {
     inputHandler.ClearKey();
-    inputHandler.CheckForEvent();
+    inputHandler.CheckForEvent(context);
     if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
     {
         std::exit(0);
@@ -107,6 +119,8 @@ void Engine::Render()
             actor->Render();
         }
     }
+
+    gui->Render();
 }
 
 // InitTcod() remains unchanged from previous lab

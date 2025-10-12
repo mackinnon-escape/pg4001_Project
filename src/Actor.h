@@ -30,15 +30,18 @@ public:
     bool IsDead() const { return destructible && destructible->IsDead(); }
     int TakeDamage(int damage);
     bool IsAlive() const { return destructible && !destructible->IsDead(); }
-    void Attack(Actor* target) { if (attacker) attacker->Attack(target); }
+    void Attack(const Actor* owner, Actor* target) const { if (attacker) attacker->Attack(owner, target); }
+    int GetDefense() const { return destructible ? destructible->defense : 0; }
 
     Destructible* destructible{ nullptr }; // something that can be damaged
     Attacker* attacker{ nullptr };
     std::unique_ptr<Ai> ai{ nullptr };     // something self-updating
+
+    std::string name{};
+
 private:
     Point position{ Point::Zero };
     int ch{ 0 }; // ascii code
-    std::string name{};
     TCODColor colour{ WHITE };
     bool blocks{ true };
 };

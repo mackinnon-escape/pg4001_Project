@@ -4,6 +4,8 @@
 #include "Engine.h"
 #include "Colours.h"
 #include "Actor.h"
+#include "Gui.h"
+
 
 int Destructible::TakeDamage(Actor* owner, int damage)
 {
@@ -25,6 +27,7 @@ int Destructible::TakeDamage(Actor* owner, int damage)
 
 void Destructible::Die(Actor* owner)
 {
+    Engine::GetInstance()->gui->SendMessage(RED, "You died!");
     owner->ChangeToCorpse(corpseName);
     // make sure corpses are drawn before living actors
     Engine::GetInstance()->DrawFirst(owner);

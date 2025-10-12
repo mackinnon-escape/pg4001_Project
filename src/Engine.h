@@ -6,11 +6,12 @@
 
 class Actor;
 class Map;
+class Gui;
 
 class Engine
 {
 public:
-    enum GameStatus { STARTUP, IDLE, NEW_TURN, VICTORY, DEFEAT } gameStatus{ STARTUP };
+    enum GameStatus { STARTUP, IDLE, NEW_TURN, VICTORY, DEFEAT, POPUP, MENU } gameStatus{ STARTUP };
     // Singleton Pattern
 private:
     inline static Engine* instance{ nullptr };
@@ -26,12 +27,14 @@ public:
     void Run();
     void DrawFirst(Actor* actor);
     unsigned int GetKeyCode() { return inputHandler.GetKeyCode(); }
+    Point GetMouseLocation() const { return inputHandler.GetMouseLocation(); }
 
     tcod::Console console;
     Actor* player;
     int fovRadius{ 10 };	// how far can the player see?
     std::vector<Actor*> actors;
     Map* map;
+    Gui* gui;
 
 private:
     Input inputHandler{};
