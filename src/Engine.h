@@ -24,6 +24,8 @@ public:
     // Game Implementation    
 public:
     void Run();
+    void DrawFirst(Actor* actor);
+    unsigned int GetKeyCode() { return inputHandler.GetKeyCode(); }
 
     tcod::Console console;
     Actor* player;

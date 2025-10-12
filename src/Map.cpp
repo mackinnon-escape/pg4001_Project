@@ -3,10 +3,14 @@
 #include "Engine.h"
 #include "Actor.h"
 #include "Colours.h"
+#include "Destructible.h"
+#include "Attacker.h"
+#include "Ai.h"
 
 static constexpr int MAX_ROOM_MONSTERS = 3;
 static constexpr int ROOM_MAX_SIZE{ 12 };
 static constexpr int ROOM_MIN_SIZE{ 6 };
+static constexpr int FOV_RADIUS{ 10 };
 
 Map::Map(int width, int height) : width(width), height(height)
 {
@@ -93,9 +97,7 @@ bool Map::IsInFov(const Point& location) const
 
 void Map::ComputeFov() const
 {
-    map->computeFov(Engine::GetInstance()->player->GetLocation().x,
-        Engine::GetInstance()->player->GetLocation().y,
-        Engine::GetInstance()->fovRadius);
+    map->computeFov(Engine::GetInstance()->player->GetLocation().x, Engine::GetInstance()->player->GetLocation().y, FOV_RADIUS);
 }
 
 /*
@@ -158,12 +160,18 @@ void Map::AddMonster(const Point& location) const
     {
         // create an orc
         Actor* orc = new Actor(location, 'o', "orc", DESATURATED_GREEN);
+        orc->destructible = new MonsterDestructible(10, 0, "dead orc");
+        orc->attacker = new Attacker(3);
+        orc->ai = std::make_unique<MonsterAi>();
         Engine::GetInstance()->actors.push_back(orc);
     }
     else
     {
         // create a troll
         Actor* troll = new Actor(location, 'T', "troll", DARKER_GREEN);
+        troll->destructible = new MonsterDestructible(16, 1, "troll carcass");
+        troll->attacker = new Attacker(4);
+        troll->ai = std::make_unique<MonsterAi>();
         Engine::GetInstance()->actors.push_back(troll);
     }
 }

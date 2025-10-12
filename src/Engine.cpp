@@ -4,6 +4,9 @@
 #include "Actor.h"
 #include "Map.h"
 #include "Point.h"
+#include "Destructible.h"
+#include "Attacker.h"
+#include "Ai.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
@@ -40,6 +43,9 @@ Engine::~Engine()
 void Engine::Init()
 {
     player = new Actor(Point::Zero, '@', "player", WHITE);
+    player->destructible = new PlayerDestructible(30, 2, "your cadaver");
+    player->attacker = new Attacker(5);
+    player->ai = std::make_unique<PlayerAi>();
     actors.push_back(player);
 
     map->Init(true);
@@ -70,32 +76,22 @@ void Engine::HandleInput()
 
 void Engine::Update()
 {
-    int dx{ 0 };
-    int dy{ 0 };
     if (gameStatus == STARTUP)
     {
         map->ComputeFov();
     }
     gameStatus = IDLE;
 
-    switch (inputHandler.GetKeyCode())
+    player->Update();
+    if (gameStatus == NEW_TURN)
     {
-    case SDLK_UP: dy = -1; break;
-    case SDLK_DOWN: dy = 1; break;
-    case SDLK_LEFT: dx = -1; break;
-    case SDLK_RIGHT: dx = 1; break;
-    default:
-        break;
-    }
-
-    if (dx != 0 || dy != 0)
-    {
-        Point dp{ dx, dy };
-        if (player->Move(player->GetLocation() + dp))
+        for (auto actor : actors)
         {
-            map->ComputeFov();
+            if (actor != player)
+            {
+                actor->Update();
+            }
         }
-        gameStatus = Engine::NEW_TURN;
     }
 }
 
@@ -129,4 +125,14 @@ void Engine::InitTcod()
     params.vsync = 1;
     params.sdl_window_flags = SDL_WINDOW_RESIZABLE;
     context = tcod::Context(params);
+}
+
+void Engine::DrawFirst(Actor* actor)
+{
+    auto deadActor = std::find(actors.begin(), actors.end(), actor);
+    if (deadActor != actors.end())
+    {
+        actors.erase(deadActor);
+        actors.insert(actors.begin(), actor);
+    }
 }

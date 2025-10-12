@@ -3,6 +3,11 @@
 #include "Engine.h"
 #include "Map.h"
 
+void Actor::Update()
+{
+    if (ai) ai->Update(this);
+}
+
 void Actor::Render() const
 {
     Engine::GetInstance()->console.at(position.x, position.y).ch = ch;
@@ -26,4 +31,24 @@ bool Actor::Move(const Point& target)
 
     SetLocation(target);
     return true;
+}
+
+/*
+* transform the actor into a corpse!
+*/
+void Actor::ChangeToCorpse(std::string corpseName)
+{
+    ch = '%';
+    colour = DARK_RED;
+    name = corpseName;
+    blocks = false;
+}
+
+int Actor::TakeDamage(int damage)
+{
+    if (destructible)
+    {
+        return destructible->TakeDamage(this, damage);
+    }
+    return 0;
 }
