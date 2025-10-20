@@ -6,8 +6,6 @@ class Actor;
 class Destructible
 {
 public:
-    int maxHp;
-    int hp;
     int defense;
     std::string corpseName;
     inline bool IsDead() const { return hp <= 0; }
@@ -20,10 +18,10 @@ public:
     int TakeDamage(Actor* owner, int damage);
     virtual void Die(Actor* owner);
 protected:
-    enum DestructibleType
-    {
-        MONSTER, PLAYER
-    };
+    virtual void NotifyHealthChanged() const {}
+
+    int maxHp;
+    int hp;
 };
 
 class MonsterDestructible : public Destructible
@@ -38,8 +36,8 @@ public:
 class PlayerDestructible : public Destructible
 {
 public:
-    PlayerDestructible(int maxHp, int defense, const std::string& corpseName)
-        : Destructible(maxHp, defense, corpseName) {
-    }
+    PlayerDestructible(int maxHp, int defense, const std::string& corpseName);
     void Die(Actor* owner);
+private:
+    void NotifyHealthChanged() const override;
 };

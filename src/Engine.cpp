@@ -1,66 +1,39 @@
 #include "Engine.h"
 
-//#include <iostream>
-//#include <cstdlib>
-
 #include "SDL3/SDL.h"
 #include "Colours.h"
-#include "Actor.h"
 #include "Map.h"
-#include "Point.h"
-#include "Destructible.h"
-#include "Attacker.h"
-#include "Ai.h"
 #include "Gui.h"
+#include "CustomEvents.h"
+
+//#include "Actor.h"
+//#include "Point.h"
+//#include "Destructible.h"
+//#include "Attacker.h"
+//#include "Ai.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
 static constexpr int GUI_HEIGHT{ 7 };
 
-// Singleton Implementation
-Engine* Engine::GetInstance()
-{
-    if (Engine::instance == nullptr)
-    {
-        Engine::instance = new Engine(WINDOW_WIDTH, WINDOW_HEIGHT);
-    }
-    return Engine::instance;
-}
-
-Engine::Engine(int width, int height) : player(nullptr), map(nullptr), screenWidth(width), screenHeight(height)
+Engine::Engine() : screenWidth(WINDOW_WIDTH), screenHeight(WINDOW_HEIGHT)
 {
     InitTcod();
     gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
-    map = new Map(screenWidth, screenHeight - GUI_HEIGHT);
+    map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler);
 }
 
 Engine::~Engine()
 {
-    for (auto actor : actors)
-    {
-        delete actor;
-    }
-    actors.clear();
-
     delete map;
     delete gui;
-    Engine::instance = nullptr;
 }
 
 void Engine::Init()
 {
-    player = new Actor(Point::Zero, '@', "player", WHITE);
-    player->destructible = new PlayerDestructible(30, 2, "your cadaver");
-    player->attacker = new Attacker(5);
-    player->ai = std::make_unique<PlayerAi>();
-    actors.push_back(player);
+     map->Init(true);
+     EventManager::GetInstance()->Publish(MessageEvent("Welcome stranger!\nPrepare to perish in the Tombs of the Ancient Kings.", RED));
 
-    map->Init(true);
-    if (gameStatus == STARTUP)
-    {
-        map->ComputeFov();
-    }
-    gameStatus = IDLE;
 }
 
 void Engine::Run()
@@ -72,6 +45,7 @@ void Engine::Run()
         HandleInput();
         Update();
         Render();
+        SDL_PumpEvents();   // Only needed if running on Mac
         context.present(console);
     }
 }
@@ -94,33 +68,16 @@ void Engine::Update()
     }
     gameStatus = IDLE;
 
-    player->Update();
-    if (gameStatus == NEW_TURN)
-    {
-        for (auto actor : actors)
-        {
-            if (actor != player)
-            {
-                actor->Update();
-            }
-        }
-    }
+    map->Update();
 }
 
 void Engine::Render()
 {
     console.clear();
 
-    map->Render();
-    for (auto actor : actors)
-    {
-        if (map->IsInFov(actor->GetLocation()))
-        {
-            actor->Render();
-        }
-    }
+    map->Render(console);
 
-    gui->Render();
+    gui->Render(inputHandler, *map);
 }
 
 // InitTcod() remains unchanged from previous lab
@@ -139,14 +96,4 @@ void Engine::InitTcod()
     params.vsync = 1;
     params.sdl_window_flags = SDL_WINDOW_RESIZABLE;
     context = tcod::Context(params);
-}
-
-void Engine::DrawFirst(Actor* actor)
-{
-    auto deadActor = std::find(actors.begin(), actors.end(), actor);
-    if (deadActor != actors.end())
-    {
-        actors.erase(deadActor);
-        actors.insert(actors.begin(), actor);
-    }
 }

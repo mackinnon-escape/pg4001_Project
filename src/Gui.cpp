@@ -7,36 +7,48 @@
 #include "Engine.h"
 #include "Destructible.h"
 #include "Map.h"
+#include "CustomEvents.h"
+#include "Input.h"
+
 
 static constexpr int PANEL_HEIGHT = 7;
 static constexpr int BAR_WIDTH = 20;
 static constexpr int MSG_X = BAR_WIDTH + 2;
 static constexpr int MSG_HEIGHT = PANEL_HEIGHT - 1;
 
-void Gui::Render()
+Gui::Gui(const Point pos, const int width, const int height, tcod::Console& main) : console(width, height), position(pos), guiWidth(width), guiHeight(height), mainConsole(main)
+{
+    SubscribeToEvents();
+}
+
+void Gui::SubscribeToEvents()
+{
+    EventManager::GetInstance()->Subscribe(EventType::HealthChanged,
+        [&, this](const Event& e)
+        {
+            const auto& healthEvent = static_cast<const HealthChangedEvent&>(e);
+            healthData.currentHp = healthEvent.currentHp;   
+            healthData.maxHp = healthEvent.maxHp;   
+        });
+
+    EventManager::GetInstance()->Subscribe(EventType::MessageLogged,
+        [&, this](const Event& e)
+        {
+            const auto& msgEvent = static_cast<const MessageEvent&>(e);
+            AddMessage(msgEvent.message, msgEvent.col);
+        });
+}
+
+
+void Gui::Render(Input& input, ILocationProvider& locationProvider)
 {
     console.clear();
-
+        
     // draw the health bar
-    RenderBar(1, 1, BAR_WIDTH, "HP", static_cast<int>(Engine::GetInstance()->player->destructible->hp), static_cast<int>(Engine::GetInstance()->player->destructible->maxHp), LIGHT_RED, DARKER_RED);
+    RenderBar(1, 1, BAR_WIDTH, "HP", healthData.currentHp, healthData.maxHp, LIGHT_RED, DARKER_RED);
+    RenderMessages();
 
-    // draw the message log
-    int y = 1;
-    float colourCoefficient = 0.4f;
-    for (auto message : log)
-    {
-        TCODColor scaled = message->col * colourCoefficient;
-        TCOD_ColorRGB fg = { scaled.r, scaled.g, scaled.b };
-        tcod::print(console, { MSG_X, y }, message->text, fg, std::nullopt);
-
-        y++;
-        if (colourCoefficient < 1.0f)
-        {
-            colourCoefficient += 0.3f;
-        }
-    }
-
-    RenderMouseLook();
+    RenderMouseLook(input, locationProvider);
 
     // blit the GUI console on the root console
     tcod::blit(mainConsole, console, { position.x, position.y }, { 0, 0, guiWidth, guiHeight });
@@ -57,34 +69,46 @@ void Gui::RenderBar(int x, int y, int width, const std::string& name, int value,
     tcod::print(console, { x + width / 2, y }, label, WHITE, std::nullopt, TCOD_CENTER);
 }
 
-
-/// <summary>
-/// message takes a colour and a formatted std::string
-/// there are a variable number of arguments for this function
-/// </summary>
-/// <param name="col">colour of text</param>
-/// <param name="format">formatted text to display in log</param>
-/// <param name="...">formatting values to insert into formatted text</param>
-void Gui::SendMessage(const TCODColor& col, const char* format, ...)
+void Gui::RenderMouseLook(Input& input, ILocationProvider& locationProvider)
 {
-    // build the text from the format string and
-    va_list vaArgs;
-    char buf[128];
-    va_start(vaArgs, format);
-    (void)vsnprintf(buf, sizeof(buf), format, vaArgs);
-    va_end(vaArgs);
-    std::string messageContent{ buf };
+    Point mouseLocation{ input.GetMouseLocation() };
+    if (locationProvider.IsInFov(mouseLocation)) 
+    {
+        // if mouse is out of fov, nothing to render
+        return;
+    }
 
+    std::string actorNames;
+    bool first{ true };
+
+    auto actors = locationProvider.GetActorsAt(mouseLocation);
+    for (auto actor : actors)
+    {
+        if (first)
+        {
+            first = false;
+        }
+        else
+        {
+            actorNames += ", ";
+        }
+        actorNames += actor->name;
+    }
+
+    // display the list of actors under the mouse cursor
+    tcod::print(console, { 1, 0 }, actorNames, LIGHT_GREY, std::nullopt);
+}
+
+void Gui::AddMessage(const std::string& text, const TCODColor& col)
+{
+    if (text.empty()) return;
     // split our message into lines
     std::vector<std::string> lineList;
-    if (!messageContent.empty())
+    std::string currentLine;
+    std::stringstream ss(text);
+    while (std::getline(ss, currentLine))
     {
-        std::string currentLine;
-        std::stringstream ss(messageContent);
-        while (std::getline(ss, currentLine))
-        {
-            lineList.push_back(currentLine);
-        }
+        lineList.push_back(currentLine);
     }
 
     // for each line, add to the message log
@@ -103,34 +127,20 @@ void Gui::SendMessage(const TCODColor& col, const char* format, ...)
     }
 }
 
-void Gui::RenderMouseLook()
+void Gui::RenderMessages()
 {
-    Point mouseLocation{ Engine::GetInstance()->GetMouseLocation() };
-    if (!Engine::GetInstance()->map->IsInFov(mouseLocation))
+    int y = 1;
+    float colourCoefficient = 0.4f;
+    for (auto message : log)
     {
-        // if mouse is out of fov, nothing to render
-        return;
-    }
+        TCODColor scaled = message->col * colourCoefficient;
+        TCOD_ColorRGB fg = { scaled.r, scaled.g, scaled.b };
+        tcod::print(console, { MSG_X, y }, message->text, fg, std::nullopt);
 
-    std::string actorNames;
-    bool first = true;
-    for (auto actor : Engine::GetInstance()->actors)
-    {
-        // find actors under the mouse cursor
-        if (actor->IsIn(mouseLocation))
+        y++;
+        if (colourCoefficient < 1.0f)
         {
-            if (first)
-            {
-                first = false;
-            }
-            else
-            {
-                actorNames += ", ";
-            }
-            actorNames += actor->name;
+            colourCoefficient += 0.3f;
         }
     }
-
-    // display the list of actors under the mouse cursor
-    tcod::print(console, { 1, 0 }, actorNames, LIGHT_GREY, std::nullopt);
 }

@@ -1,18 +1,20 @@
 #include "Map.h"
 
+#include <algorithm>
 #include "Engine.h"
 #include "Actor.h"
 #include "Colours.h"
 #include "Destructible.h"
 #include "Attacker.h"
 #include "Ai.h"
+#include "CustomEvents.h"
 
 static constexpr int MAX_ROOM_MONSTERS = 3;
 static constexpr int ROOM_MAX_SIZE{ 12 };
 static constexpr int ROOM_MIN_SIZE{ 6 };
 static constexpr int FOV_RADIUS{ 10 };
 
-Map::Map(int width, int height) : width(width), height(height)
+Map::Map(int width, int height, Input& input) : width(width), height(height), inputHandler(input)
 {
     seed = TCODRandom::getInstance()->getInt(0, 0x7FFFFFFF);
 }
@@ -21,10 +23,26 @@ Map::~Map()
 {
     delete[] tiles;
     delete map;
+    delete rng;
+
+    for (auto actor : actors)
+    {
+        delete actor;
+    }
+    actors.clear();
 }
 
 void Map::Init(bool withActors)
 {
+    CreatePlayer();
+    EventManager::GetInstance()->Subscribe(EventType::ActorDied,
+        [&, this](const Event& e)
+        {
+            const auto& deathEvent = static_cast<const ActorDiedEvent&>(e);
+            deathEvent.actor->ChangeToCorpse(deathEvent.corpseName);
+            DrawFirst(deathEvent.actor);
+        });
+
     TCODBsp bsp(0, 0, width, height);
 
     long area{ width * height };
@@ -42,7 +60,28 @@ bool Map::IsWall(const Point& position) const
     return !map->isWalkable(position.x, position.y);
 }
 
-void Map::Render() const
+void Map::Update()
+{
+    Point oldPlayerLocation = player->GetLocation();
+    player->Update(inputHandler, *this);
+    if (oldPlayerLocation != player->GetLocation())
+    {
+        ComputeFov();
+    }
+
+    if(player->hasActedThisFrame)
+    {
+        for (auto actor : actors)
+        {
+            if (actor != player)
+            {
+                actor->Update(inputHandler, *this);
+            }
+        }
+    }
+}
+
+void Map::Render(tcod::Console& console) const
 {
     static constexpr tcod::ColorRGB darkWall(0, 0, 100);
     static constexpr tcod::ColorRGB darkGround(50, 50, 150);
@@ -57,14 +96,22 @@ void Map::Render() const
             if (IsInFov(p))
             {
                 // Currently visible - bright colors
-                Engine::GetInstance()->console.at(x, y).bg = IsWall(p) ? lightWall : lightGround;
+                console.at(x, y).bg = IsWall(p) ? lightWall : lightGround;
             }
             else if (IsExplored(p))
             {
                 // Previously seen - dim colors
-                Engine::GetInstance()->console.at(x, y).bg = IsWall(p) ? darkWall : darkGround;
+                console.at(x, y).bg = IsWall(p) ? darkWall : darkGround;
             }
             // Unseen areas remain black (default background)
+        }
+    }
+
+     for (auto actor : actors)
+    {
+        if (IsInFov(actor->GetLocation()))
+        {
+            actor->Render(console);
         }
     }
 }
@@ -74,6 +121,15 @@ bool Map::CanWalk(const Point& position) const
     if (IsWall(position))
     {
         return false;    // this is a wall
+    }
+
+    for (auto actor : actors)
+    {
+        if (actor->blocks && actor->IsIn(position))
+        {
+            // there is a blocking actor here. cannot walk
+            return false;
+        }
     }
     return true;
 }
@@ -97,7 +153,41 @@ bool Map::IsInFov(const Point& location) const
 
 void Map::ComputeFov() const
 {
-    map->computeFov(Engine::GetInstance()->player->GetLocation().x, Engine::GetInstance()->player->GetLocation().y, FOV_RADIUS);
+    map->computeFov(player->GetLocation().x, player->GetLocation().y, FOV_RADIUS);
+}
+
+void Map::CreatePlayer()
+{
+    player = new Actor(Point::Zero, '@', "player", WHITE);
+    player->destructible = new PlayerDestructible(30, 2, "your cadaver");
+    player->attacker = new Attacker(5, RED);
+    player->ai = std::make_unique<PlayerAi>();
+    actors.push_back(player);
+}
+
+void Map::DrawFirst(Actor* actor)
+{
+    auto deadActor = std::find(actors.begin(), actors.end(), actor);
+    if (deadActor != actors.end())
+    {
+        actors.erase(deadActor);
+        actors.insert(actors.begin(), actor);
+    }
+}
+
+std::vector<Actor*> Map::GetActorsAt(const Point& p) const
+{
+     std::vector<Actor*> actorsFound{};
+
+     for (auto actor : actors)
+     {
+         if (actor->IsIn(p))
+         {
+             actorsFound.push_back(actor);
+         }
+     }
+
+     return actorsFound;
 }
 
 /*
@@ -127,7 +217,7 @@ void Map::Dig(const Point& corner1, const Point& corner2) const
     }
 }
 
-void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner2, bool withActors) const
+void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner2, bool withActors)
 {
     if (!withActors) { return; }	// skip out from making actors if withActors is false
 
@@ -137,7 +227,7 @@ void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner
     // put the player in the first room
     if (first)
     {
-        Engine::GetInstance()->player->SetLocation(middleOfRoom);
+        player->SetLocation(middleOfRoom);
     }
     else
     {
@@ -154,25 +244,25 @@ void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner
     }
 }
 
-void Map::AddMonster(const Point& location) const
+void Map::AddMonster(const Point& location)
 {
     if (rng->getInt(0, 100) < 80)
     {
         // create an orc
         Actor* orc = new Actor(location, 'o', "orc", DESATURATED_GREEN);
         orc->destructible = new MonsterDestructible(10, 0, "dead orc");
-        orc->attacker = new Attacker(3);
+        orc->attacker = new Attacker(3, LIGHT_GREY);
         orc->ai = std::make_unique<MonsterAi>();
-        Engine::GetInstance()->actors.push_back(orc);
+        actors.push_back(orc);
     }
     else
     {
         // create a troll
         Actor* troll = new Actor(location, 'T', "troll", DARKER_GREEN);
         troll->destructible = new MonsterDestructible(16, 1, "troll carcass");
-        troll->attacker = new Attacker(4);
+        troll->attacker = new Attacker(4, LIGHT_GREY);
         troll->ai = std::make_unique<MonsterAi>();
-        Engine::GetInstance()->actors.push_back(troll);
+        actors.push_back(troll);
     }
 }
 

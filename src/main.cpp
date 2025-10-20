@@ -4,6 +4,8 @@
 
 int main()
 {
-    Engine::GetInstance()->Run();
+    Engine engine;
+    engine.Run();
+
     return 0;
 }

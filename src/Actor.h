@@ -9,6 +9,9 @@
 #include "Attacker.h"
 #include "Ai.h"
 
+class Input;
+class ILocationProvider;
+
 class Actor
 {
 public:
@@ -16,10 +19,9 @@ public:
     Actor(const Point initialLocation, const int ch, std::string name, const TCODColor& col) : position(initialLocation), ch(ch), name(name), colour(col) {}
     virtual ~Actor() = default;
 
-    void Update();
-    void Render() const;
-    bool Move(const Point& target);
-
+    void Update(Input& input, ILocationProvider& locationProvider);
+    void Render(tcod::Console& console) const;
+    
     Point GetLocation() { return position; }
     void SetLocation(const Point& cp) { position = cp; }
     bool IsIn(const Point& target) const { return position == target; }
@@ -30,7 +32,7 @@ public:
     bool IsDead() const { return destructible && destructible->IsDead(); }
     int TakeDamage(int damage);
     bool IsAlive() const { return destructible && !destructible->IsDead(); }
-    void Attack(const Actor* owner, Actor* target) const { if (attacker) attacker->Attack(owner, target); }
+    void Attack(Actor* target) const { if (attacker) attacker->Attack(this, target); }
     int GetDefense() const { return destructible ? destructible->defense : 0; }
 
     Destructible* destructible{ nullptr }; // something that can be damaged
@@ -38,11 +40,11 @@ public:
     std::unique_ptr<Ai> ai{ nullptr };     // something self-updating
 
     std::string name{};
-
+    bool blocks{ true };
+    bool hasActedThisFrame{ false };
 private:
     Point position{ Point::Zero };
     int ch{ 0 }; // ascii code
     TCODColor colour{ WHITE };
-    bool blocks{ true };
 };
 #endif  // ACTOR_H

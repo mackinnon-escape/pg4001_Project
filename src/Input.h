@@ -40,6 +40,6 @@ public:
     void ClearMouse() { mouse.Clear(); }
 
 private:
-    KeyEvent keyPressed;
+    KeyEvent keyPressed{};
     MouseEvent mouse{ {0,0}, false, false };
 };

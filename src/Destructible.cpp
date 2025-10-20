@@ -1,10 +1,8 @@
 #include "Destructible.h"
 
-
-#include "Engine.h"
 #include "Colours.h"
 #include "Actor.h"
-#include "Gui.h"
+#include "CustomEvents.h"
 
 
 int Destructible::TakeDamage(Actor* owner, int damage)
@@ -13,7 +11,8 @@ int Destructible::TakeDamage(Actor* owner, int damage)
     if (damage > 0)
     {
         hp -= damage;
-        if (hp <= 0)
+        NotifyHealthChanged();
+         if (hp <= 0)
         {
             Die(owner);
         }
@@ -27,24 +26,32 @@ int Destructible::TakeDamage(Actor* owner, int damage)
 
 void Destructible::Die(Actor* owner)
 {
-    Engine::GetInstance()->gui->SendMessage(RED, "You died!");
-    owner->ChangeToCorpse(corpseName);
-    // make sure corpses are drawn before living actors
-    Engine::GetInstance()->DrawFirst(owner);
+    EventManager::GetInstance()->Publish(ActorDiedEvent(owner, corpseName));
 }
 
 // -----------------------------------------
 
 void MonsterDestructible::Die(Actor* owner)
 {
-    // transform it into a nasty corpse! it doesn't block, can't be attacked and doesn't move
+    EventManager::GetInstance()->Publish(MessageEvent(owner->name + " is dead.", LIGHT_GREY));
     Destructible::Die(owner);
 }
 
 // -----------------------------------------
 
+PlayerDestructible::PlayerDestructible(int maxHp, int defense, const std::string& corpseName)
+    : Destructible(maxHp, defense, corpseName) 
+{
+    NotifyHealthChanged();
+}
+
 void PlayerDestructible::Die(Actor* owner)
 {
+    EventManager::GetInstance()->Publish(MessageEvent("You died!", RED));
     Destructible::Die(owner);
-    Engine::GetInstance()->gameStatus = Engine::DEFEAT;
+}
+
+void PlayerDestructible::NotifyHealthChanged() const
+{
+    EventManager::GetInstance()->Publish(HealthChangedEvent(hp, maxHp));
 }

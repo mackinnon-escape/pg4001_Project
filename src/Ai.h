@@ -2,13 +2,16 @@
 
 class Actor;
 struct Point;
+class Input;
+class ILocationProvider;
 
 class Ai
 {
 public:
     virtual ~Ai() {};
 
-    virtual void Update(Actor* owner) = 0;
+    virtual void Update(Actor*, ILocationProvider&) {};
+    virtual void Update(Actor* owner, ILocationProvider& locationProvider, Input&) { Update(owner, locationProvider); }
 protected:
 };
 
@@ -16,18 +19,18 @@ class PlayerAi : public Ai
 {
 public:
     PlayerAi() {};
-    void Update(Actor* owner) override;
+    void Update(Actor* owner, ILocationProvider& locationProvider, Input& input) override;
 
 protected:
-    static bool MoveOrAttack(Actor* owner, const Point& target);
+    static bool MoveOrAttack(Actor* owner, const Point& target, ILocationProvider& locationProvider);
 };
 
 class MonsterAi : public Ai
 {
 public:
-    void Update(Actor* owner) override;
+    void Update(Actor* owner, ILocationProvider& locationProvider) override;
 
 protected:
     int moveCount{ 0 };
-    static void MoveOrAttack(Actor* owner, const Point& target);
+    static void MoveOrAttack(Actor* owner, const Point& target, ILocationProvider& locationProvider);
 };

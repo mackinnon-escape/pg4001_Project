@@ -6,14 +6,17 @@
 #include "Point.h"
 #include "Gui.h"
 #include "Colours.h"
+#include "Input.h"
+#include "CustomEvents.h"
 
-void PlayerAi::Update(Actor* owner)
+void PlayerAi::Update(Actor* owner, ILocationProvider& locationProvider, Input& input)
 {
     if (owner->IsDead())  return;
-
+    owner->hasActedThisFrame = false;
+    
     int dx{ 0 };
     int dy{ 0 };
-    switch (Engine::GetInstance()->GetKeyCode())
+    switch (input.GetKeyCode())
     {
     case SDLK_UP: dy = -1; break;
     case SDLK_DOWN: dy = 1; break;
@@ -26,34 +29,32 @@ void PlayerAi::Update(Actor* owner)
     if (dx != 0 || dy != 0)
     {
         Point dp{ dx, dy };
-        Engine::GetInstance()->gameStatus = Engine::NEW_TURN;
-        if (MoveOrAttack(owner, owner->GetLocation() + dp))
-        {
-            Engine::GetInstance()->map->ComputeFov();
-        }
+        owner->hasActedThisFrame = true;
+        MoveOrAttack(owner, owner->GetLocation() + dp, locationProvider);
     }
 }
 
-bool PlayerAi::MoveOrAttack(Actor* owner, const Point& target)
+bool PlayerAi::MoveOrAttack(Actor* owner, const Point& target, ILocationProvider& locationProvider)
 {
-    if (Engine::GetInstance()->map->IsWall(target)) return false;
+    if (locationProvider.IsWall(target)) return false;
     // look for living actors to attack
-    for (auto actor : Engine::GetInstance()->actors)
+
+    std::vector<Actor*> actorsInTarget = locationProvider.GetActorsAt(target);
+    for (auto actor : actorsInTarget)
     {
-        if (actor->IsAlive() && actor->IsIn(target))
+        if (actor->IsAlive())
         {
-            owner->Attack(owner, actor);
+            owner->Attack(actor);
             return false;
         }
     }
 
     // look for corpses or items
-    for (auto actor : Engine::GetInstance()->actors)  // new section
+    for (auto actor : actorsInTarget)
     {
-        bool corpse = actor->IsDead();
-        if (corpse && actor->IsIn(target))
+        if (actor->IsDead())
         {
-            Engine::GetInstance()->gui->SendMessage(LIGHT_GREY, "There's a %s here", actor->name.c_str());
+            EventManager::GetInstance()->Publish(MessageEvent("There's a " + actor->name + " here", LIGHT_GREY));
         }
     }
 
@@ -65,11 +66,11 @@ bool PlayerAi::MoveOrAttack(Actor* owner, const Point& target)
 // after losing his sight
 static constexpr int TRACKING_TURNS{ 3 };
 
-void MonsterAi::Update(Actor* owner)
+void MonsterAi::Update(Actor* owner, ILocationProvider& locationProvider)
 {
     if (owner->IsDead()) return;
 
-    if (Engine::GetInstance()->map->IsInFov(owner->GetLocation()))
+    if (locationProvider.IsInFov(owner->GetLocation()))
     {
         // we can see the player. move towards him
         moveCount = TRACKING_TURNS;
@@ -81,40 +82,40 @@ void MonsterAi::Update(Actor* owner)
 
     if (moveCount > 0)
     {
-        MoveOrAttack(owner, Engine::GetInstance()->player->GetLocation());
+        MoveOrAttack(owner, locationProvider.GetPlayerLocation(), locationProvider);
     }
 }
 
-void MonsterAi::MoveOrAttack(Actor* owner, const Point& target)
+void MonsterAi::MoveOrAttack(Actor* owner, const Point& target, ILocationProvider& locationProvider)
 {
     int dx{ target.x - owner->GetLocation().x };
     int dy{ target.y - owner->GetLocation().y };
-    int stepDx{ dx > 0 ? 1 : -1 };
-    int stepDy{ dy > 0 ? 1 : -1 };
     float distance{ sqrtf(static_cast<float>(dx * dx + dy * dy)) };
     if (distance >= 2)
     {
         dx = static_cast<int>(round(static_cast<float>(dx) / distance));
         dy = static_cast<int>(round(static_cast<float>(dy) / distance));
+        int stepDx{ dx > 0 ? 1 : -1 };
+        int stepDy{ dy > 0 ? 1 : -1 };
         Point dp{ dx, dy };              // the displacement towards the target
         Point stepDxPoint{ stepDx, 0 };  // moves the monster horizontally one tile
         Point stepDyPoint{ 0, stepDy };  // moves the monster vertically one tile
 
-        if (Engine::GetInstance()->map->CanWalk(owner->GetLocation() + dp))
+        if (locationProvider.CanWalk(owner->GetLocation() + dp))
         {
             owner->SetLocation(owner->GetLocation() + dp);
         }
-        else if (Engine::GetInstance()->map->CanWalk(owner->GetLocation() + stepDxPoint))
+        else if (locationProvider.CanWalk(owner->GetLocation() + stepDxPoint))
         {
             owner->SetLocation(owner->GetLocation() + stepDxPoint);
         }
-        else if (Engine::GetInstance()->map->CanWalk(owner->GetLocation() + stepDyPoint))
+        else if (locationProvider.CanWalk(owner->GetLocation() + stepDyPoint))
         {
             owner->SetLocation(owner->GetLocation() + stepDyPoint);
         }
     }
     else if (owner->attacker)
     {
-        owner->attacker->Attack(owner, Engine::GetInstance()->player);
+        owner->attacker->Attack(owner, locationProvider.GetPlayer());
     }
 }

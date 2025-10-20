@@ -4,7 +4,6 @@
 #include "Point.h"
 #include <vector>
 
-class Actor;
 class Map;
 class Gui;
 
@@ -12,40 +11,27 @@ class Engine
 {
 public:
     enum GameStatus { STARTUP, IDLE, NEW_TURN, VICTORY, DEFEAT, POPUP, MENU } gameStatus{ STARTUP };
-    // Singleton Pattern
-private:
-    inline static Engine* instance{ nullptr };
-    Engine(int screenWidth, int screenHeight);
+
+    Engine();
     ~Engine();
-public:
-    Engine(Engine& other) = delete;
-    void operator=(const Engine&) = delete;
-    static Engine* GetInstance();
 
-    // Game Implementation    
-public:
     void Run();
-    void DrawFirst(Actor* actor);
-    unsigned int GetKeyCode() { return inputHandler.GetKeyCode(); }
-    Point GetMouseLocation() const { return inputHandler.GetMouseLocation(); }
 
-    tcod::Console console;
-    Actor* player;
-    int fovRadius{ 10 };	// how far can the player see?
-    std::vector<Actor*> actors;
-    Map* map;
-    Gui* gui;
 
 private:
+    Map* map{ nullptr };
+    Gui* gui{ nullptr };
+    tcod::Console console;
+    tcod::Context context;
+
     Input inputHandler{};
     int screenWidth;
     int screenHeight;
-    tcod::Context context;
     bool computeFov{ true };
 
     void Init();
     void InitTcod();
     void HandleInput();
-    void Update();
+    void Update();  
     void Render();
 };

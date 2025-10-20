@@ -1,6 +1,5 @@
 #include "Point.h"
 
-#include "Point.h"
 #include <cmath>
 
 const Point Point::Zero{ 0,0 };

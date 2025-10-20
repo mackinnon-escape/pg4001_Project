@@ -3,34 +3,19 @@
 #include "Engine.h"
 #include "Map.h"
 
-void Actor::Update()
+void Actor::Update(Input& input, ILocationProvider& locationProvider)
 {
-    if (ai) ai->Update(this);
+    hasActedThisFrame = false;
+    if (ai) 
+    { 
+        ai->Update(this, locationProvider, input);
+    }
 }
 
-void Actor::Render() const
+void Actor::Render(tcod::Console& console) const
 {
-    Engine::GetInstance()->console.at(position.x, position.y).ch = ch;
-    Engine::GetInstance()->console.at(position.x, position.y).fg = TCOD_ColorRGBA{ colour.r, colour.g, colour.b, 255 };
-}
-
-bool Actor::Move(const Point& target)
-{
-    if (Engine::GetInstance()->map->IsWall(target))
-    {
-        return false;
-    }
-
-    for (auto actor : Engine::GetInstance()->actors)
-    {
-        if (actor->IsIn(target))
-        {
-            return false;    // Another actor is already there
-        }
-    }
-
-    SetLocation(target);
-    return true;
+    console.at(position.x, position.y).ch = ch;
+    console.at(position.x, position.y).fg = TCOD_ColorRGBA{ colour.r, colour.g, colour.b, 255 };
 }
 
 /*

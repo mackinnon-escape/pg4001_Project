@@ -1,7 +1,7 @@
 #include "Attacker.h"
+#include <string>
 #include "Actor.h"
-#include "Engine.h"
-#include "Gui.h"
+#include "CustomEvents.h"
 
 void Attacker::Attack(const Actor* owner, Actor* target) const
 {
@@ -9,17 +9,17 @@ void Attacker::Attack(const Actor* owner, Actor* target) const
     {
         if (power - target->GetDefense() > 0)
         {
-            Engine::GetInstance()->gui->SendMessage(owner == Engine::GetInstance()->player ? RED : LIGHT_GREY, "%s attacks %s for %d hit points.", owner->name.c_str(), target->name.c_str(),
-                power - target->GetDefense());
+            std::string attackMessage = owner->name + " attacks " + target->name + " for " + std::to_string(static_cast<int>(power - target->GetDefense())) + " hit points.";
+            EventManager::GetInstance()->Publish(MessageEvent(attackMessage, messageColour));
         }
         else
         {
-            Engine::GetInstance()->gui->SendMessage(LIGHT_GREY, "%s attacks %s but it has no effect!", owner->name.c_str(), target->name.c_str());
+            EventManager::GetInstance()->Publish(MessageEvent(owner->name + " attacks " + target->name + " but it has no effect!", messageColour));
         }
         target->TakeDamage(power);
     }
     else
     {
-        Engine::GetInstance()->gui->SendMessage(LIGHT_GREY, "%s attacks %s in vain.", owner->name.c_str(), target->name.c_str());
+        EventManager::GetInstance()->Publish(MessageEvent(owner->name + " attacks " + target->name + " in vain.", messageColour));
     }
 }
