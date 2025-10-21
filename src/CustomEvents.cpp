@@ -15,3 +15,8 @@ MessageEvent::MessageEvent(const std::string& msg, const TCODColor& color)
 {
     type = EventType::MessageLogged;
 }
+
+PopupLaunchedEvent::PopupLaunchedEvent(Popup* popup) : popup(popup)
+{
+    type = EventType::PopupLaunched;
+}

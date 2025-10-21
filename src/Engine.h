@@ -6,6 +6,7 @@
 
 class Map;
 class Gui;
+class Popup;
 
 class Engine
 {
@@ -28,6 +29,7 @@ private:
     int screenWidth;
     int screenHeight;
     bool computeFov{ true };
+    Popup* currentPopup{ nullptr };
 
     void Init();
     void InitTcod();

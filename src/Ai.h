@@ -23,6 +23,7 @@ public:
 
 protected:
     static bool MoveOrAttack(Actor* owner, const Point& target, ILocationProvider& locationProvider);
+    bool HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvider& locationProvider, Input& input);
 };
 
 class MonsterAi : public Ai

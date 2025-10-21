@@ -8,7 +8,8 @@ enum class EventType
     HealthChanged,
     ActorDied,
     MessageLogged,
-    GameOver
+    GameOver,
+    PopupLaunched
 };
 
 struct Event

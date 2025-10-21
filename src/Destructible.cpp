@@ -29,6 +29,22 @@ void Destructible::Die(Actor* owner)
     EventManager::GetInstance()->Publish(ActorDiedEvent(owner, corpseName));
 }
 
+int Destructible::Heal(int amount)
+{
+    hp += amount;
+    if (hp > maxHp)
+    {
+        amount -= hp - maxHp;
+        hp = maxHp;
+    }
+
+    if (amount != 0)
+    {
+        NotifyHealthChanged();
+    }
+
+    return amount;
+}
 // -----------------------------------------
 
 void MonsterDestructible::Die(Actor* owner)

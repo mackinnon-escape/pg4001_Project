@@ -6,9 +6,10 @@
 #include "libtcod.h"
 #include "Point.h"
 #include "ILocationProvider.h"
+#include "Actor.h"
 
-class Actor;
 class Input;
+enum class EFFECT_TYPE;
 
 struct Tile
 {
@@ -35,6 +36,7 @@ public:
     Actor* GetPlayer() const override { return player; }
     Point GetPlayerLocation() const  override { return player->GetLocation(); }
     std::vector<Actor*> GetActorsAt(const Point& p) const override;
+    std::vector<Actor*>& GetActors() { return actors; }
 
 private:
     Tile* tiles{ nullptr };
@@ -52,6 +54,9 @@ private:
     void CreateRoom(const bool first, const Point& corner1, const Point& corner2, bool withActors);
     void AddMonster(const Point& location);
     void CreatePlayer();
+    void AddItem(const Point& location);
+    void AddItem(const std::string& name, const char symbol, const Point& location, const tcod::ColorRGB& colour,
+        const bool isBlocking, const EFFECT_TYPE effectType, const std::string& description, const int amount);
 };
 
 class BspCallback : public ITCODBspCallback

@@ -5,12 +5,7 @@
 #include "Map.h"
 #include "Gui.h"
 #include "CustomEvents.h"
-
-//#include "Actor.h"
-//#include "Point.h"
-//#include "Destructible.h"
-//#include "Attacker.h"
-//#include "Ai.h"
+#include "Popup.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
@@ -34,6 +29,12 @@ void Engine::Init()
      map->Init(true);
      EventManager::GetInstance()->Publish(MessageEvent("Welcome stranger!\nPrepare to perish in the Tombs of the Ancient Kings.", RED));
 
+     EventManager::GetInstance()->Subscribe(EventType::PopupLaunched,
+         [&, this](const Event& e)
+         {
+             auto event = dynamic_cast<const PopupLaunchedEvent&>(e);
+             currentPopup = event.popup;
+         });
 }
 
 void Engine::Run()
@@ -66,18 +67,34 @@ void Engine::Update()
     {
         map->ComputeFov();
     }
+    
     gameStatus = IDLE;
+    if (currentPopup != nullptr)
+    {
+        currentPopup->Update();
+        if (currentPopup->IsDone())
+        {
+            currentPopup = nullptr;
+        }
+        return; // Skip updating the game while a popup is active
+    }
 
     map->Update();
 }
 
 void Engine::Render()
 {
-    console.clear();
+    if (currentPopup != nullptr)
+    {
+        currentPopup->Render(console);
+    }
+    else
+    {
+        console.clear();
 
-    map->Render(console);
-
-    gui->Render(inputHandler, *map);
+        map->Render(console);
+        gui->Render(inputHandler, *map);
+    }
 }
 
 // InitTcod() remains unchanged from previous lab

@@ -17,6 +17,7 @@ public:
 
     int TakeDamage(Actor* owner, int damage);
     virtual void Die(Actor* owner);
+    int Heal(int amount);
 protected:
     virtual void NotifyHealthChanged() const {}
 

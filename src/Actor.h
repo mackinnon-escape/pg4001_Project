@@ -8,6 +8,8 @@
 #include "Destructible.h"
 #include "Attacker.h"
 #include "Ai.h"
+#include "Pickable.h"
+#include "Container.h"
 
 class Input;
 class ILocationProvider;
@@ -17,7 +19,7 @@ class Actor
 public:
     Actor() {}
     Actor(const Point initialLocation, const int ch, std::string name, const TCODColor& col) : position(initialLocation), ch(ch), name(name), colour(col) {}
-    virtual ~Actor() = default;
+    virtual ~Actor();
 
     void Update(Input& input, ILocationProvider& locationProvider);
     void Render(tcod::Console& console) const;
@@ -34,10 +36,15 @@ public:
     bool IsAlive() const { return destructible && !destructible->IsDead(); }
     void Attack(Actor* target) const { if (attacker) attacker->Attack(this, target); }
     int GetDefense() const { return destructible ? destructible->defense : 0; }
+    int Heal(int amount) { return destructible != nullptr ? destructible->Heal(amount) : 0; }
+    bool AddToContainer(Actor* item) { return container ? container->Add(item) : false; }
+    bool RemoveFromContainer(Actor* item);
 
     Destructible* destructible{ nullptr }; // something that can be damaged
     Attacker* attacker{ nullptr };
     std::unique_ptr<Ai> ai{ nullptr };     // something self-updating
+    Pickable* pickable{ nullptr };         // something that can be picked and used
+    Container* container{ nullptr };       // something that can contain actors
 
     std::string name{};
     bool blocks{ true };

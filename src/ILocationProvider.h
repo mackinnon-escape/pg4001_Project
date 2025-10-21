@@ -15,6 +15,7 @@ public:
 	virtual Point GetPlayerLocation() const = 0;
 	virtual Actor* GetPlayer() const = 0;
 	virtual std::vector<Actor*> GetActorsAt(const Point& p) const = 0;
+	virtual std::vector<Actor*>& GetActors() = 0;
 };
 
 #endif // ILOCAITON_PROVIDER

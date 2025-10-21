@@ -8,11 +8,13 @@
 #include "Attacker.h"
 #include "Ai.h"
 #include "CustomEvents.h"
+#include "Effect.h"
 
 static constexpr int MAX_ROOM_MONSTERS = 3;
 static constexpr int ROOM_MAX_SIZE{ 12 };
 static constexpr int ROOM_MIN_SIZE{ 6 };
 static constexpr int FOV_RADIUS{ 10 };
+static constexpr int MAX_ROOM_ITEMS = 2;
 
 Map::Map(int width, int height, Input& input) : width(width), height(height), inputHandler(input)
 {
@@ -162,6 +164,7 @@ void Map::CreatePlayer()
     player->destructible = new PlayerDestructible(30, 2, "your cadaver");
     player->attacker = new Attacker(5, RED);
     player->ai = std::make_unique<PlayerAi>();
+    player->container = new Container(26);
     actors.push_back(player);
 }
 
@@ -231,6 +234,18 @@ void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner
     }
     else
     {
+        // add items first so that monsters show on top (although only in that room)
+        int nbItems = rng->getInt(0, MAX_ROOM_ITEMS);
+        while (nbItems > 0)
+        {
+            Point p{ rng->getInt(corner1.x, corner2.x), rng->getInt(corner1.y, corner2.y) };
+            if (CanWalk(p))
+            {
+                AddItem(p);
+            }
+            nbItems--;
+        }
+
         int MonstersToAdd = rng->getInt(0, MAX_ROOM_MONSTERS);
         while (MonstersToAdd > 0)
         {
@@ -264,6 +279,31 @@ void Map::AddMonster(const Point& location)
         troll->ai = std::make_unique<MonsterAi>();
         actors.push_back(troll);
     }
+}
+
+void Map::AddItem(const Point& location)
+{
+    AddItem("health potion", '!', location, VIOLET, false, EFFECT_TYPE::HEALTH, "You are healed!", 4);
+}
+
+void Map::AddItem(const std::string& name, const char symbol, const Point& location, const tcod::ColorRGB& colour, const bool isBlocking,
+    const EFFECT_TYPE effectType, const std::string& description, const int amount)
+{
+    Actor* item = new Actor(location, symbol, name, colour);
+    item->blocks = isBlocking;
+
+    std::unique_ptr<Effect> effect{ nullptr };
+    switch (effectType)
+    {
+    case EFFECT_TYPE::NONE:
+        break;
+    case EFFECT_TYPE::HEALTH:
+        effect = std::make_unique<HealthEffect>(amount, description);
+        break;
+    }
+
+    item->pickable = new Pickable(std::move(effect));
+    actors.push_back(item);
 }
 
 bool BspCallback::visitNode(TCODBsp* node, void* userData)

@@ -5,6 +5,7 @@
 #include "EventManager.h"
 
 class Actor;
+class Popup;
 
 struct HealthChangedEvent : Event
 {
@@ -26,4 +27,10 @@ struct MessageEvent : Event
     MessageEvent(const std::string& msg, const TCODColor& color);
     std::string message;
     TCODColor col;
+};
+
+struct PopupLaunchedEvent : Event
+{
+    PopupLaunchedEvent(Popup* popup);
+    Popup* popup;
 };

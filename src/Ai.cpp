@@ -8,6 +8,7 @@
 #include "Colours.h"
 #include "Input.h"
 #include "CustomEvents.h"
+#include "Popup.h"
 
 void PlayerAi::Update(Actor* owner, ILocationProvider& locationProvider, Input& input)
 {
@@ -16,16 +17,24 @@ void PlayerAi::Update(Actor* owner, ILocationProvider& locationProvider, Input& 
     
     int dx{ 0 };
     int dy{ 0 };
-    switch (input.GetKeyCode())
+    switch (unsigned int key = input.GetKeyCode())
     {
     case SDLK_UP: dy = -1; break;
     case SDLK_DOWN: dy = 1; break;
     case SDLK_LEFT: dx = -1; break;
     case SDLK_RIGHT: dx = 1; break;
     default:
+        if (key > 0 && key <= 0x00ff)    // ASCII range
+        {
+            bool playerActed = HandleActionKey(owner, key, locationProvider, input);
+            if (playerActed)
+            {
+                owner->hasActedThisFrame = true;
+            }
+        }
         break;
     }
-
+    
     if (dx != 0 || dy != 0)
     {
         Point dp{ dx, dy };
@@ -50,9 +59,9 @@ bool PlayerAi::MoveOrAttack(Actor* owner, const Point& target, ILocationProvider
     }
 
     // look for corpses or items
-    for (auto actor : actorsInTarget)
+    for (auto actor : locationProvider.GetActors())
     {
-        if (actor->IsDead())
+        if ((actor->IsDead() || actor->pickable != nullptr) && actor->IsIn(target))
         {
             EventManager::GetInstance()->Publish(MessageEvent("There's a " + actor->name + " here", LIGHT_GREY));
         }
@@ -61,6 +70,54 @@ bool PlayerAi::MoveOrAttack(Actor* owner, const Point& target, ILocationProvider
     owner->SetLocation(target);
     return true;
 }
+
+bool PlayerAi::HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvider& locationProvider, Input& input)
+{
+    switch (ascii)
+    {
+    case 'g': // get/pickup item
+    {
+        bool found = false;
+        for (auto actor : locationProvider.GetActorsAt(owner->GetLocation()))
+        {
+            if (actor->pickable)
+            {
+                found = true;
+                if (Pickable::Pick(actor, owner, locationProvider.GetActors()))
+                {
+                    EventManager::GetInstance()->Publish(MessageEvent("You pick up the " + actor->name + ".", LIGHT_GREY));
+                }
+                else
+                {
+                    EventManager::GetInstance()->Publish(MessageEvent("Your inventory is full.", DARK_RED));
+                }
+                break;
+            }
+        }
+        if (!found)
+        {
+            EventManager::GetInstance()->Publish(MessageEvent("There's nothing here that you can pick up.", LIGHT_GREY));
+        }
+
+        return true;
+    }
+    break;
+
+    case 'i': // display inventory
+        auto inventoryPopup = new InventoryPopup(owner,
+            [&](Actor* item, Actor* owner) -> void
+            {
+                if (item->pickable)
+                {
+                    item->pickable->Use(item, owner);
+                }
+            }, input);
+        EventManager::GetInstance()->Publish(PopupLaunchedEvent(inventoryPopup));
+        break;
+    }
+    return false;
+}
+
 
 // how many turns the monster chases the player
 // after losing his sight

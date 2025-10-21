@@ -3,6 +3,14 @@
 #include "Engine.h"
 #include "Map.h"
 
+Actor::~Actor()
+{
+    delete attacker;
+    delete destructible;
+    delete pickable;    // Add this line
+    delete container;   // Add this line
+}
+
 void Actor::Update(Input& input, ILocationProvider& locationProvider)
 {
     hasActedThisFrame = false;
@@ -36,4 +44,14 @@ int Actor::TakeDamage(int damage)
         return destructible->TakeDamage(this, damage);
     }
     return 0;
+}
+
+bool Actor::RemoveFromContainer(Actor* item)
+{
+    if (container)
+    {
+        container->Remove(item);
+        return true;
+    }
+    return false;
 }
