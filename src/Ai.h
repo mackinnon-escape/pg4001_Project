@@ -1,9 +1,11 @@
 #pragma once
 
-class Actor;
+#include <memory>
+
 struct Point;
 class Input;
 class ILocationProvider;
+class Actor;
 
 class Ai
 {
@@ -34,4 +36,13 @@ public:
 protected:
     int moveCount{ 0 };
     static void MoveOrAttack(Actor* owner, const Point& target, ILocationProvider& locationProvider);
+};
+
+class ConfusedMonsterAi : public Ai
+{
+public:
+    ConfusedMonsterAi() {}
+    virtual ~ConfusedMonsterAi() = default;
+
+    void Update(Actor* owner, ILocationProvider& locationProvider) override;
 };

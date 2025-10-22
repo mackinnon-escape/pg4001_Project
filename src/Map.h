@@ -20,16 +20,19 @@ struct Tile
 class Map : public ILocationProvider
 {
 public:
-    Map(int width, int height, Input& input);
+    Map(int width, int height, Input& input, tcod::Console& console);
     virtual ~Map();
 
     void Init(bool withActors);
-    void Render(tcod::Console& console) const;
+    void Render() const;
     void Update();
     bool IsExplored(const Point& location) const;
     void ComputeFov() const;
     void DrawFirst(Actor* actor);
-    // ILocatoinProvider
+    Actor* GetClosestMonster(const Point start, const float range) const;
+    std::vector<Actor*> GetActorsWithinRange(Point centre, int range, bool onlyInFov, bool skipDeadActors, bool skipPlayer) const;
+
+    // ILocationProvider
     bool IsWall(const Point& position) const override;
     bool CanWalk(const Point& position) const override;
     bool IsInFov(const Point& location) const override;
@@ -48,6 +51,9 @@ private:
     Input& inputHandler;
     Actor* player{ nullptr };
     std::vector<Actor*> actors{};
+    tcod::Console& console;
+    bool isPickingATile{ false };
+    int maxPickingRange{ -1 };
     friend class BspCallback;
 
     void Dig(const Point& corner1, const Point& corner2) const;
@@ -55,8 +61,10 @@ private:
     void AddMonster(const Point& location);
     void CreatePlayer();
     void AddItem(const Point& location);
-    void AddItem(const std::string& name, const char symbol, const Point& location, const tcod::ColorRGB& colour,
-        const bool isBlocking, const EFFECT_TYPE effectType, const std::string& description, const int amount);
+    void AddItem(const std::string& name, const char symbol, const Point& location, const tcod::ColorRGB& colour, const bool isBlocking,
+        const TargetSelector::SelectorType selectorType, const int range, const EFFECT_TYPE effectType, const std::string& description,
+        const int amount, const int duration = 0, const int aiChangeType = 0);
+    void HandleTileSelected();
 };
 
 class BspCallback : public ITCODBspCallback

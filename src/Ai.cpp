@@ -104,6 +104,7 @@ bool PlayerAi::HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvid
     break;
 
     case 'i': // display inventory
+    {
         auto inventoryPopup = new InventoryPopup(owner,
             [&](Actor* item, Actor* owner) -> void
             {
@@ -113,7 +114,21 @@ bool PlayerAi::HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvid
                 }
             }, input);
         EventManager::GetInstance()->Publish(PopupLaunchedEvent(inventoryPopup));
-        break;
+    }
+    break;
+    case 'd': // drop item
+    {
+        auto dropPopup = new InventoryPopup(owner,
+            [&](Actor* item, Actor* owner) -> void
+            {
+                if (item && item->pickable && owner)
+                {
+                    Pickable::Drop(item, owner, locationProvider.GetActors());
+                }
+            }, input);
+        EventManager::GetInstance()->Publish(PopupLaunchedEvent(dropPopup));
+        return true;
+    }
     }
     return false;
 }
@@ -174,5 +189,39 @@ void MonsterAi::MoveOrAttack(Actor* owner, const Point& target, ILocationProvide
     else if (owner->attacker)
     {
         owner->attacker->Attack(owner, locationProvider.GetPlayer());
+    }
+}
+
+void ConfusedMonsterAi::Update(Actor* owner, ILocationProvider& locationProvider)
+{
+    // If the monster dies, we don't need special handling - the TemporaryAi will clean up
+    if (owner->IsDead())
+    {
+        return;
+    }
+
+    // Move in a random direction
+    TCODRandom* rng = TCODRandom::getInstance();
+    Point dp{ rng->getInt(-1, 1), rng->getInt(-1, 1) };
+
+    if (dp != Point::Zero)
+    {
+        Point destP{ owner->GetLocation() + dp };
+        if (locationProvider.CanWalk(destP))
+        {
+            owner->SetLocation(destP);
+        }
+        else
+        {
+            // If we can't move there, try to attack whatever is blocking
+            for (auto actor : locationProvider.GetActors())
+            {
+                if (actor->IsIn(destP) && !actor->IsDead())
+                {
+                    owner->Attack(actor);
+                    break;
+                }
+            }
+        }
     }
 }

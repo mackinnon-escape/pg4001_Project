@@ -7,8 +7,8 @@ Actor::~Actor()
 {
     delete attacker;
     delete destructible;
-    delete pickable;    // Add this line
-    delete container;   // Add this line
+    delete pickable;
+    delete container;
 }
 
 void Actor::Update(Input& input, ILocationProvider& locationProvider)

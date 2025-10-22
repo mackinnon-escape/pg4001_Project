@@ -3,6 +3,7 @@
 #include <string>
 #include "libtcod.h"
 #include "EventManager.h"
+#include "Point.h"
 
 class Actor;
 class Popup;
@@ -33,4 +34,18 @@ struct PopupLaunchedEvent : Event
 {
     PopupLaunchedEvent(Popup* popup);
     Popup* popup;
+};
+
+struct TargetingRequestEvent : Event
+{
+    TargetingRequestEvent(Actor* caster, int range = -1);
+    Actor* caster;
+    int range;
+};
+
+struct TargetingCompletedEvent : Event
+{
+    TargetingCompletedEvent(Point selectedLocation, bool success);
+    Point selectedLocation;
+    bool success;
 };

@@ -7,6 +7,7 @@
 #include "Destructible.h"
 #include "Attacker.h"
 #include "Ai.h"
+#include "TemporaryAi.h"
 #include "CustomEvents.h"
 #include "Effect.h"
 
@@ -16,7 +17,7 @@ static constexpr int ROOM_MIN_SIZE{ 6 };
 static constexpr int FOV_RADIUS{ 10 };
 static constexpr int MAX_ROOM_ITEMS = 2;
 
-Map::Map(int width, int height, Input& input) : width(width), height(height), inputHandler(input)
+Map::Map(int width, int height, Input& input, tcod::Console& console) : width(width), height(height), inputHandler(input), console(console)
 {
     seed = TCODRandom::getInstance()->getInt(0, 0x7FFFFFFF);
 }
@@ -45,6 +46,14 @@ void Map::Init(bool withActors)
             DrawFirst(deathEvent.actor);
         });
 
+    EventManager::GetInstance()->Subscribe(EventType::TargetingRequested,
+        [this](const Event& e)
+        {
+            const auto& targetingEvent = static_cast<const TargetingRequestEvent&>(e);
+            isPickingATile = true;
+            maxPickingRange = targetingEvent.range;
+        });
+
     TCODBsp bsp(0, 0, width, height);
 
     long area{ width * height };
@@ -64,6 +73,12 @@ bool Map::IsWall(const Point& position) const
 
 void Map::Update()
 {
+    if (isPickingATile)
+    {
+        HandleTileSelected();
+        return;
+    }
+
     Point oldPlayerLocation = player->GetLocation();
     player->Update(inputHandler, *this);
     if (oldPlayerLocation != player->GetLocation())
@@ -83,13 +98,14 @@ void Map::Update()
     }
 }
 
-void Map::Render(tcod::Console& console) const
+void Map::Render() const
 {
     static constexpr tcod::ColorRGB darkWall(0, 0, 100);
     static constexpr tcod::ColorRGB darkGround(50, 50, 150);
     static constexpr tcod::ColorRGB lightWall(130, 110, 50);   // Visible walls
     static constexpr tcod::ColorRGB lightGround(200, 180, 50); // Visible floors
 
+    Point mouseLocation = inputHandler.GetMouseLocation();
     for (int x = 0; x < width; x++)
     {
         for (int y = 0; y < height; y++)
@@ -99,6 +115,21 @@ void Map::Render(tcod::Console& console) const
             {
                 // Currently visible - bright colors
                 console.at(x, y).bg = IsWall(p) ? lightWall : lightGround;
+                if (isPickingATile && (maxPickingRange == -1 || player->GetDistanceFrom(p) <= maxPickingRange))
+                {
+                    if (p == mouseLocation)
+                    {
+                        console.at(x, y).bg = WHITE;
+                    }
+                    else
+                    {
+                        // Make tiles within range slightly brighter
+                        auto& tile = console.at(x, y);
+                        tile.bg.r = static_cast<uint8_t>(std::min(255, static_cast<int>(tile.bg.r * 1.2f)));
+                        tile.bg.g = static_cast<uint8_t>(std::min(255, static_cast<int>(tile.bg.g * 1.2f)));
+                        tile.bg.b = static_cast<uint8_t>(std::min(255, static_cast<int>(tile.bg.b * 1.2f)));
+                    }
+                }
             }
             else if (IsExplored(p))
             {
@@ -193,6 +224,75 @@ std::vector<Actor*> Map::GetActorsAt(const Point& p) const
      return actorsFound;
 }
 
+Actor* Map::GetClosestMonster(const Point start, const float range) const
+{
+    Actor* closest{ nullptr };
+    float bestDistance{ 1E6f };  // Start with a very large distance
+
+    for (auto actor : actors)   // go through every monster saving the bestDistance so far.
+    {
+        // Check if it's a valid target (not the player and is alive)
+        if (actor != player && actor->IsAlive())
+        {
+            float distance = actor->GetDistanceFrom(start);
+            // Check if this actor is closer and within range (range -1 means unlimited)
+            if (distance < bestDistance && (distance <= range || range == -1.0f))
+            {
+                bestDistance = distance;
+                closest = actor;
+            }
+        }
+    }
+    return closest;
+}
+
+std::vector<Actor*> Map::GetActorsWithinRange(Point centre, int range, bool onlyInFov, bool skipDeadActors, bool skipPlayer) const
+{
+    std::vector<Actor*> result;
+    for (const auto& actor : actors)
+    {
+        if (skipDeadActors && actor->IsDead()) continue;
+        if (skipPlayer && actor == player) continue;
+        if (onlyInFov && !IsInFov(actor->GetLocation())) continue;
+
+        float distance = actor->GetDistanceFrom(centre);
+        if (range == -1 || distance <= range)
+        {
+            result.push_back(actor);
+        }
+    }
+    return result;
+}
+
+void Map::HandleTileSelected()
+{
+    if (inputHandler.IsLeftMousePressed())
+    {
+        Point selectedLocation = inputHandler.GetMouseLocation();
+        if (!IsInFov(selectedLocation))  return;
+
+        // Check if the selected location is within range and in FOV
+        if (maxPickingRange == -1 || player->GetDistanceFrom(selectedLocation) <= maxPickingRange)
+        {
+            // Publish successful targeting completion
+            EventManager::GetInstance()->Publish(TargetingCompletedEvent(selectedLocation, true));
+        }
+        else
+        {
+            // Invalid selection - publish failed targeting
+            EventManager::GetInstance()->Publish(TargetingCompletedEvent(Point::Zero, false));
+        }
+        isPickingATile = false;
+    }
+    // Check for cancellation (right click, key press, or timeout)
+    else if (inputHandler.IsRightMousePressed() || inputHandler.GetKeyCode() != 0)
+    {
+        // Publish cancelled targeting
+        EventManager::GetInstance()->Publish(TargetingCompletedEvent(Point::Zero, false));
+        isPickingATile = false;
+    }
+}
+
 /*
 * dig out the room: change Tile::canWalk to true
 * Can also dig out a hallway, will do so if a coordinate is the same in both corners
@@ -283,15 +383,53 @@ void Map::AddMonster(const Point& location)
 
 void Map::AddItem(const Point& location)
 {
-    AddItem("health potion", '!', location, VIOLET, false, EFFECT_TYPE::HEALTH, "You are healed!", 4);
+    int dice = rng->getInt(0, 100);
+    if (dice < 70)                  // 70% chance: health potion
+    {
+        AddItem("health potion", '!', location, VIOLET, false,
+            TargetSelector::SelectorType::NONE, 0,
+            EFFECT_TYPE::HEALTH, "You are healed!", 4);
+    }
+    else if (dice < 80)            // 10% chance: lightning bolt
+    {
+        AddItem("scroll of lightning bolt", '#', location, LIGHT_YELLOW, false,
+            TargetSelector::SelectorType::CLOSEST_MONSTER, 5,
+            EFFECT_TYPE::HEALTH,
+            "A lighting bolt strikes the %s with a loud thunder!\nThe damage is %g hit points.",
+            -20);
+    }
+    else if (dice < 90)            // 10% chance: fireball
+    {
+        AddItem("scroll of fireball", '#', location, LIGHT_YELLOW, false,
+            TargetSelector::SelectorType::SELECTED_RANGE, 3,
+            EFFECT_TYPE::HEALTH,
+            "The %s gets burned for %g hit points.", -12);
+    }
+    else                           // 10% chance: confusion
+    {
+        AddItem("scroll of confusion", '#', location, LIGHT_YELLOW, false,
+            TargetSelector::SelectorType::SELECTED_MONSTER, 5,
+            EFFECT_TYPE::AI_CHANGE,
+            "The eyes of the %s look vacant,\nas he starts to stumble around!",
+            0, 10, 1);  // duration=10, aiChangeType=1 for confused
+    }
 }
 
 void Map::AddItem(const std::string& name, const char symbol, const Point& location, const tcod::ColorRGB& colour, const bool isBlocking,
-    const EFFECT_TYPE effectType, const std::string& description, const int amount)
+    const TargetSelector::SelectorType selectorType, const int range, const EFFECT_TYPE effectType, const std::string& description,
+    const int amount, const int duration, const int type)
 {
     Actor* item = new Actor(location, symbol, name, colour);
     item->blocks = isBlocking;
 
+    // Create the selector if needed
+    std::unique_ptr<TargetSelector> selector{ nullptr };
+    if (selectorType != TargetSelector::SelectorType::NONE)
+    {
+        selector = std::make_unique<TargetSelector>(selectorType, range, *this);
+    }
+
+    // Create the appropriate effect
     std::unique_ptr<Effect> effect{ nullptr };
     switch (effectType)
     {
@@ -300,9 +438,17 @@ void Map::AddItem(const std::string& name, const char symbol, const Point& locat
     case EFFECT_TYPE::HEALTH:
         effect = std::make_unique<HealthEffect>(amount, description);
         break;
+    case EFFECT_TYPE::AI_CHANGE:
+        TemporaryAi<ConfusedMonsterAi>* ai{ nullptr };
+        if (type == 1)
+        {
+            ai = new TemporaryAi<ConfusedMonsterAi>(duration);
+        }
+        effect = std::make_unique<AiChangeEffect>(ai, description);
+        break;
     }
 
-    item->pickable = new Pickable(std::move(effect));
+    item->pickable = new Pickable(std::move(selector), std::move(effect));
     actors.push_back(item);
 }
 

@@ -20,3 +20,15 @@ PopupLaunchedEvent::PopupLaunchedEvent(Popup* popup) : popup(popup)
 {
     type = EventType::PopupLaunched;
 }
+
+TargetingRequestEvent::TargetingRequestEvent(Actor* caster, int range)
+    : caster(caster), range(range)
+{
+    type = EventType::TargetingRequested;
+}
+
+TargetingCompletedEvent::TargetingCompletedEvent(Point selectedLocation, bool success)
+    : selectedLocation(selectedLocation), success(success)
+{
+    type = EventType::TargetingCompleted;
+}

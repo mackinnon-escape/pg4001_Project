@@ -9,7 +9,9 @@ enum class EventType
     ActorDied,
     MessageLogged,
     GameOver,
-    PopupLaunched
+    PopupLaunched,
+    TargetingRequested,
+    TargetingCompleted
 };
 
 struct Event
@@ -25,13 +27,16 @@ class EventManager
 {
 public:
     using EventHandler = std::function<void(const Event&)>;
+    using SubscriptionHandle = size_t;
 
     // Singleton pattern
     static EventManager* GetInstance();
 
-    void Subscribe(EventType type, EventHandler handler);
+    SubscriptionHandle Subscribe(EventType type, EventHandler handler);
+    void Unsubscribe(EventType type, SubscriptionHandle handle);
     void Publish(const Event& event);
-
+    int GetNextHandle() { return static_cast<int>(nextHandle); }
 private:
-    std::unordered_map<EventType, std::vector<EventHandler>> handlers;
+    std::unordered_map<EventType, std::vector<std::pair<SubscriptionHandle, EventHandler>>> handlers;
+    SubscriptionHandle nextHandle{ 1 };
 };

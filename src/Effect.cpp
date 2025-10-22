@@ -4,6 +4,7 @@
 #include "Colours.h"
 #include "Actor.h"
 #include "CustomEvents.h"
+#include "TemporaryAi.h"
 
 
 bool HealthEffect::ApplyTo(Actor* actor)
@@ -24,6 +25,38 @@ bool HealthEffect::ApplyTo(Actor* actor)
             return true;
         }
     }
+    else  // Add this else block for damage effects
+    {
+        // Damage effect (amount is negative)
+        int damageDealt = -amount - actor->destructible->defense;
+        if (damageDealt > 0)
+        {
+            if (!message.empty())
+            {
+                auto completeMessage = std::vformat(message, std::make_format_args(actor->name, damageDealt));
+                EventManager::GetInstance()->Publish(MessageEvent(completeMessage, LIGHT_GREY));
+            }
+        }
+        if (actor->TakeDamage(-amount) > 0)
+        {
+            return true;
+        }
+    }
 
+    return false;
+}
+
+bool AiChangeEffect::ApplyTo(Actor* actor)
+{
+    if (newAi != nullptr && actor != nullptr && actor->ai != nullptr)
+    {
+        newAi->ApplyTo(actor);
+        if (!message.empty())
+        {
+            auto completeMessage = std::vformat(message, std::make_format_args(actor->name));
+            EventManager::GetInstance()->Publish(MessageEvent(completeMessage, LIGHT_GREY));
+        }
+        return true;
+    }
     return false;
 }

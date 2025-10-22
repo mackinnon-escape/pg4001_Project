@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Actor.h"
+#include "CustomEvents.h"
 
 bool Pickable::Pick(Actor* pickedItem, Actor* newOwner, std::vector<Actor*>& actors)
 {
@@ -22,13 +23,52 @@ bool Pickable::Pick(Actor* pickedItem, Actor* newOwner, std::vector<Actor*>& act
 
 bool Pickable::Use(Actor* usedItem, Actor* user) const
 {
-    bool succeed = false;
-    if (effect->ApplyTo(user))
+    std::vector<Actor*> targets;
+    if (selector)
     {
-        succeed = true;
+        auto useCallback = [this](std::vector<Actor*>& targets, Actor* usedItem, Actor* user) -> bool { return this->Use(targets, usedItem, user); };
+        selector->SelectTargets(targets, user, usedItem, useCallback);
+    }
+    else
+    {
+        targets.push_back(user); // self-target if no selector
+    }
+
+    if (targets.empty()) return false;
+
+    return Use(targets, usedItem, user);
+}
+
+bool Pickable::Use(std::vector<Actor*>& targets, Actor* usedItem, Actor* user) const
+{
+    bool succeed = false;
+    // Apply effect to all selected targets
+    for (auto actor : targets)
+    {
+        if (effect->ApplyTo(actor))
+        {
+            succeed = true;
+        }
+    }
+
+    // If the effect worked, consume the item
+    if (succeed)
+    {
         user->RemoveFromContainer(usedItem);
         delete usedItem;
     }
 
     return succeed;
+}
+
+void Pickable::Drop(Actor* droppedItem, Actor* dropper, std::vector<Actor*>& actors)
+{
+    if (dropper->RemoveFromContainer(droppedItem))
+    {
+        // Add back to the world
+        actors.push_back(droppedItem);
+        // Place at dropper's location
+        droppedItem->SetLocation(dropper->GetLocation());
+        EventManager::GetInstance()->Publish(MessageEvent(dropper->name + " drops a " + droppedItem->name + ".", LIGHT_GREY));
+    }
 }

@@ -15,7 +15,7 @@ Engine::Engine() : screenWidth(WINDOW_WIDTH), screenHeight(WINDOW_HEIGHT)
 {
     InitTcod();
     gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
-    map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler);
+    map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler, console);
 }
 
 Engine::~Engine()
@@ -32,7 +32,7 @@ void Engine::Init()
      EventManager::GetInstance()->Subscribe(EventType::PopupLaunched,
          [&, this](const Event& e)
          {
-             auto event = dynamic_cast<const PopupLaunchedEvent&>(e);
+             auto& event = dynamic_cast<const PopupLaunchedEvent&>(e);
              currentPopup = event.popup;
          });
 }
@@ -55,10 +55,6 @@ void Engine::HandleInput()
 {
     inputHandler.ClearKey();
     inputHandler.CheckForEvent(context);
-    if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
-    {
-        std::exit(0);
-    }
 }
 
 void Engine::Update()
@@ -74,9 +70,15 @@ void Engine::Update()
         currentPopup->Update();
         if (currentPopup->IsDone())
         {
+            delete currentPopup;
             currentPopup = nullptr;
         }
         return; // Skip updating the game while a popup is active
+    }
+
+    if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
+    {
+        std::exit(0);
     }
 
     map->Update();
@@ -92,7 +94,7 @@ void Engine::Render()
     {
         console.clear();
 
-        map->Render(console);
+        map->Render();
         gui->Render(inputHandler, *map);
     }
 }

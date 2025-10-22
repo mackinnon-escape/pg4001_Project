@@ -30,6 +30,8 @@ public:
     bool IsInSameLocationAs(const Actor* other) const { return IsIn(other->position); }
     bool IsInSameRowAs(const Actor* other) const { return position.y == other->position.y; }
     bool IsInSameColAs(const Actor* other) const { return position.x == other->position.x; }
+    float GetDistanceFrom(const Point& target) const { return position.DistanceTo(target); }
+
     void ChangeToCorpse(std::string corpseName);
     bool IsDead() const { return destructible && destructible->IsDead(); }
     int TakeDamage(int damage);

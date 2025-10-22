@@ -37,6 +37,8 @@ public:
 
     void CacheMouseValues(SDL_Event& event, tcod::Context& context);
     Point GetMouseLocation() const { return mouse.position; }
+    bool IsLeftMousePressed() const { return mouse.isLeftMousePressed; }
+    bool IsRightMousePressed() const { return mouse.isRightMousePressed; }
     void ClearMouse() { mouse.Clear(); }
 
 private:
