@@ -5,9 +5,10 @@
 #include "EventManager.h"
 #include "CustomEvents.h"
 #include "ILocationProvider.h"
+#include "Serialise.h"
 
 // return true if we have targets, false if none
-bool TargetSelector::SelectTargets(std::vector<Actor*>&actorsInRange, Actor * wearer, Actor * source, std::function<bool(std::vector<Actor*>&, Actor*, Actor*)> callback) const
+bool TargetSelector::SelectTargets(std::vector<Actor*>&actorsInRange, Actor * wearer, Actor * source, ILocationProvider& locationProvider, std::function<bool(std::vector<Actor*>&, Actor*, Actor*)> callback) const
 {
     switch (selectorType)
     {
@@ -101,4 +102,16 @@ bool TargetSelector::SelectTargets(std::vector<Actor*>&actorsInRange, Actor * we
     }
 
     return !actorsInRange.empty();
+}
+
+void TargetSelector::Save(Saver& saver) const
+{
+    saver.PutInt(static_cast<int>(selectorType));
+    saver.PutInt(range);
+}
+
+void TargetSelector::Load(Loader& loader)
+{
+    selectorType = static_cast<SelectorType>(loader.GetInt());
+    range = loader.GetInt();
 }

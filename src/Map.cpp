@@ -10,6 +10,7 @@
 #include "TemporaryAi.h"
 #include "CustomEvents.h"
 #include "Effect.h"
+#include "Serialise.h"
 
 static constexpr int MAX_ROOM_MONSTERS = 3;
 static constexpr int ROOM_MAX_SIZE{ 12 };
@@ -38,6 +39,22 @@ Map::~Map()
 void Map::Init(bool withActors)
 {
     CreatePlayer();
+    SubscribeToEvents();
+
+    TCODBsp bsp(0, 0, width, height);
+
+    long area{ width * height };
+    tiles = new Tile[area];
+
+    BspCallback listener(*this);
+    rng = new TCODRandom(seed, TCOD_RNG_CMWC);
+    map = new TCODMap(width, height);
+    bsp.splitRecursive(rng, 8, ROOM_MAX_SIZE, ROOM_MAX_SIZE, 1.5f, 1.5f);
+    bsp.traverseInvertedLevelOrder(&listener, static_cast<void*>(&withActors));
+}
+
+void Map::SubscribeToEvents()
+{
     EventManager::GetInstance()->Subscribe(EventType::ActorDied,
         [&, this](const Event& e)
         {
@@ -53,17 +70,6 @@ void Map::Init(bool withActors)
             isPickingATile = true;
             maxPickingRange = targetingEvent.range;
         });
-
-    TCODBsp bsp(0, 0, width, height);
-
-    long area{ width * height };
-    tiles = new Tile[area];
-
-    BspCallback listener(*this);
-    rng = new TCODRandom(seed, TCOD_RNG_CMWC);
-    map = new TCODMap(width, height);
-    bsp.splitRecursive(rng, 8, ROOM_MAX_SIZE, ROOM_MAX_SIZE, 1.5f, 1.5f);
-    bsp.traverseInvertedLevelOrder(&listener, static_cast<void*>(&withActors));
 }
 
 bool Map::IsWall(const Point& position) const
@@ -395,7 +401,7 @@ void Map::AddItem(const Point& location)
         AddItem("scroll of lightning bolt", '#', location, LIGHT_YELLOW, false,
             TargetSelector::SelectorType::CLOSEST_MONSTER, 5,
             EFFECT_TYPE::HEALTH,
-            "A lighting bolt strikes the %s with a loud thunder!\nThe damage is %g hit points.",
+            "A lighting bolt strikes the {} with a loud thunder!\nThe damage is {} hit points.",
             -20);
     }
     else if (dice < 90)            // 10% chance: fireball
@@ -403,14 +409,14 @@ void Map::AddItem(const Point& location)
         AddItem("scroll of fireball", '#', location, LIGHT_YELLOW, false,
             TargetSelector::SelectorType::SELECTED_RANGE, 3,
             EFFECT_TYPE::HEALTH,
-            "The %s gets burned for %g hit points.", -12);
+            "The {} gets burned for {} hit points.", -12);
     }
     else                           // 10% chance: confusion
     {
         AddItem("scroll of confusion", '#', location, LIGHT_YELLOW, false,
             TargetSelector::SelectorType::SELECTED_MONSTER, 5,
             EFFECT_TYPE::AI_CHANGE,
-            "The eyes of the %s look vacant,\nas he starts to stumble around!",
+            "The eyes of the {} look vacant,\nas he starts to stumble around!",
             0, 10, 1);  // duration=10, aiChangeType=1 for confused
     }
 }
@@ -426,7 +432,7 @@ void Map::AddItem(const std::string& name, const char symbol, const Point& locat
     std::unique_ptr<TargetSelector> selector{ nullptr };
     if (selectorType != TargetSelector::SelectorType::NONE)
     {
-        selector = std::make_unique<TargetSelector>(selectorType, range, *this);
+        selector = std::make_unique<TargetSelector>(selectorType, range);
     }
 
     // Create the appropriate effect
@@ -451,6 +457,85 @@ void Map::AddItem(const std::string& name, const char symbol, const Point& locat
     item->pickable = new Pickable(std::move(selector), std::move(effect));
     actors.push_back(item);
 }
+
+void Map::Save(Saver& saver) const
+{
+    saver.PutInt(seed);
+    saver.PutInt(width);
+    saver.PutInt(height);
+
+    // Save the complete map state
+    for (int i = 0; i < width * height; i++)
+    {
+        saver.PutInt(tiles[i].explored);
+        saver.PutInt(map->isWalkable(i % width, i / width) ? 1 : 0);
+    }
+
+    // Save player separately first
+     player->Save(saver);
+     int otherActorCount = static_cast<int>(actors.size()) - 1;    // Save all other actors (excluding player)
+     saver.PutInt(otherActorCount);
+    //int actorCount = static_cast<int>(actors.size());
+    //saver.PutInt(actorCount);
+    for (auto actor : actors)
+    {
+        //actor->Save(saver);
+         if (actor != player)
+         {
+             actor->Save(saver);
+         }
+    }
+}
+
+void Map::Load(Loader& loader)
+{
+    seed = loader.GetInt();
+    int serializedWidth = loader.GetInt();
+    int serializedHeight = loader.GetInt();
+
+    // Ensure dimensions match
+    if (serializedWidth != width || serializedHeight != height)
+    {
+        throw std::runtime_error("Map dimensions mismatch during load");
+    }
+
+    // Initialize basic structures without generating rooms
+    long area = width * height;
+    tiles = new Tile[area];
+    map = new TCODMap(width, height);
+    rng = new TCODRandom(seed, TCOD_RNG_CMWC);
+
+    // Load the saved map state
+    for (int i = 0; i < area; i++)
+    {
+        tiles[i].explored = loader.GetInt();
+        bool walkable = loader.GetInt();
+        int x = i % width;
+        int y = i / width;
+        map->setProperties(x, y, walkable, walkable);
+    }
+
+    SubscribeToEvents();
+
+     // Load player
+     player = new Actor{};
+     player->Load(loader);
+     actors.push_back(player);
+
+    // Load other actors
+    int otherActorCount = loader.GetInt();
+    for (int i = 0; i < otherActorCount; i++)
+    {
+        Actor* actor = new Actor{};
+        actor->Load(loader);
+        actors.push_back(actor);
+ /*       if (actor->name == "player")
+        {
+            player = actor;
+        }*/
+    }
+}
+
 
 bool BspCallback::visitNode(TCODBsp* node, void* userData)
 {

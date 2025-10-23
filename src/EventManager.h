@@ -36,6 +36,7 @@ public:
     void Unsubscribe(EventType type, SubscriptionHandle handle);
     void Publish(const Event& event);
     int GetNextHandle() { return static_cast<int>(nextHandle); }
+    void Reset();
 private:
     std::unordered_map<EventType, std::vector<std::pair<SubscriptionHandle, EventHandler>>> handlers;
     SubscriptionHandle nextHandle{ 1 };

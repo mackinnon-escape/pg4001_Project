@@ -1,5 +1,6 @@
 #include "Ai.h"
 
+#include <memory>
 #include "Actor.h"
 #include "Engine.h"
 #include "Map.h"
@@ -9,6 +10,42 @@
 #include "Input.h"
 #include "CustomEvents.h"
 #include "Popup.h"
+#include "Serialise.h"
+#include "TemporaryAi.h"
+
+void Ai::Save(Saver& saver) const
+{
+    saver.PutInt(static_cast<int>(GetType()));
+}
+
+std::unique_ptr<Ai> Ai::Create(Loader& loader)
+{
+    AiType type = static_cast<AiType>(loader.GetInt());
+    std::unique_ptr<Ai> ai;
+
+    switch (type)
+    {
+    case AiType::PLAYER:
+        ai = std::make_unique<PlayerAi>();
+        break;
+    case AiType::MONSTER:
+        ai = std::make_unique<MonsterAi>();
+        break;
+    case AiType::CONFUSED_MONSTER:
+        ai = std::make_unique<ConfusedMonsterAi>();
+        break;
+    case AiType::TEMPORARY:
+        auto tempAi = std::make_unique<TemporaryAi<ConfusedMonsterAi>>(0);
+        ai = std::move(tempAi);
+    }
+
+    if (ai)
+    {
+        ai->Load(loader);
+    }
+
+    return ai;
+}
 
 void PlayerAi::Update(Actor* owner, ILocationProvider& locationProvider, Input& input)
 {
@@ -110,7 +147,7 @@ bool PlayerAi::HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvid
             {
                 if (item->pickable)
                 {
-                    item->pickable->Use(item, owner);
+                    item->pickable->Use(item, owner, locationProvider);
                 }
             }, input);
         EventManager::GetInstance()->Publish(PopupLaunchedEvent(inventoryPopup));
@@ -190,6 +227,18 @@ void MonsterAi::MoveOrAttack(Actor* owner, const Point& target, ILocationProvide
     {
         owner->attacker->Attack(owner, locationProvider.GetPlayer());
     }
+}
+
+void MonsterAi::Save(Saver& saver) const
+{
+    saver.PutInt(static_cast<int>(AiType::MONSTER));
+    saver.PutInt(moveCount);
+}
+
+void MonsterAi::Load(Loader& loader)
+{
+    // AI type extracted in Create()
+    moveCount = loader.GetInt();
 }
 
 void ConfusedMonsterAi::Update(Actor* owner, ILocationProvider& locationProvider)

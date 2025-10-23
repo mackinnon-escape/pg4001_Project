@@ -2,6 +2,7 @@
 
 #include "Ai.h"
 #include "Actor.h"
+#include "Serialise.h"
 
 
 class TemporaryAiBase : public Ai
@@ -46,7 +47,46 @@ public:
         newTempAi->oldAi = std::move(savedOldAi);
         actor->ai = std::move(newTempAi);
     }
+
+    void Save(Saver& saver)
+    {
+        saver.PutInt(static_cast<int>(GetType()));
+        saver.PutInt(duration);
+        if (alternateAi)
+        {
+            saver.PutInt(1);
+            alternateAi->Save(saver);
+        }
+        else
+        {
+            saver.PutInt(0);
+        }
+        if(oldAi)
+        {
+            saver.PutInt(1);
+            oldAi->Save(saver);
+        }
+        else
+        {
+            saver.PutInt(0);
+        }
+    }
+
+    void Load(Loader& loader)
+    {
+        duration = loader.GetInt();
+        if (loader.GetInt() == 1)
+        {
+            alternateAi = Ai::Create(loader);
+        }
+        if (loader.GetInt() == 1)
+        {
+            oldAi = Ai::Create(loader);
+        }
+    }
+
+    AiType GetType() const override { return AiType::TEMPORARY; }
 protected:
     int duration;
-    std::unique_ptr<AlternateAiType> alternateAi{ nullptr };
+    std::unique_ptr<Ai> alternateAi{ nullptr };
 };

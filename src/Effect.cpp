@@ -5,7 +5,30 @@
 #include "Actor.h"
 #include "CustomEvents.h"
 #include "TemporaryAi.h"
+#include "Serialise.h"
 
+std::unique_ptr<Effect> Effect::Create(Loader& loader)
+{
+    EFFECT_TYPE type = static_cast<EFFECT_TYPE>(loader.GetInt());
+    std::unique_ptr<Effect> effect;
+
+    switch (type)
+    {
+    case EFFECT_TYPE::HEALTH:
+        effect = std::make_unique<HealthEffect>(0, "");
+        break;
+    case EFFECT_TYPE::AI_CHANGE:
+        effect = std::make_unique<AiChangeEffect>(nullptr, "");
+        break;
+    }
+
+    if (effect)
+    {
+        effect->Load(loader);
+    }
+
+    return effect;
+}
 
 bool HealthEffect::ApplyTo(Actor* actor)
 {
@@ -46,6 +69,19 @@ bool HealthEffect::ApplyTo(Actor* actor)
     return false;
 }
 
+void HealthEffect::Save(Saver& saver) const
+{
+    saver.PutInt(static_cast<int>(GetType()));
+    saver.PutInt(amount);
+    saver.PutString(message);
+}
+
+void HealthEffect::Load(Loader& loader)
+{
+    amount = loader.GetInt();
+    message = loader.GetString();
+}
+
 bool AiChangeEffect::ApplyTo(Actor* actor)
 {
     if (newAi != nullptr && actor != nullptr && actor->ai != nullptr)
@@ -59,4 +95,20 @@ bool AiChangeEffect::ApplyTo(Actor* actor)
         return true;
     }
     return false;
+}
+
+
+
+void AiChangeEffect::Save(Saver& saver) const
+{
+    saver.PutInt(static_cast<int>(GetType()));
+    newAi->Save(saver);
+    saver.PutString(message);
+}
+
+void AiChangeEffect::Load(Loader& loader)
+{
+    newAi = new TemporaryAi<ConfusedMonsterAi>(1);
+    newAi->Load(loader);
+    message = loader.GetString();
 }

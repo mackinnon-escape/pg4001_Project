@@ -1,11 +1,16 @@
 #pragma once
 
-struct Point
+#include "IPersistable.h"
+
+struct Point : IPersistable
 {
     Point() = default;
     Point(int x, int y) : x(x), y(y) {}
     Point(const Point& p) = default;
     virtual ~Point() = default;
+
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
 
     float DistanceTo(const Point& target) const;
 

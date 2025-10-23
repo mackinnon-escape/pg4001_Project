@@ -10,11 +10,12 @@
 #include "Ai.h"
 #include "Pickable.h"
 #include "Container.h"
+#include "IPersistable.h"
 
 class Input;
 class ILocationProvider;
 
-class Actor
+class Actor : IPersistable
 {
 public:
     Actor() {}
@@ -23,6 +24,9 @@ public:
 
     void Update(Input& input, ILocationProvider& locationProvider);
     void Render(tcod::Console& console) const;
+
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
     
     Point GetLocation() { return position; }
     void SetLocation(const Point& cp) { position = cp; }

@@ -37,3 +37,9 @@ void EventManager::Unsubscribe(EventType type, SubscriptionHandle handle)
     auto it = std::remove_if(eventHandlers.begin(), eventHandlers.end(), [handle](const auto& pair) { return pair.first == handle; });
     eventHandlers.erase(it, eventHandlers.end());
 }
+
+void EventManager::Reset()
+{
+    nextHandle = 1;
+    handlers.clear();
+}

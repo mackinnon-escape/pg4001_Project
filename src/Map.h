@@ -7,6 +7,7 @@
 #include "Point.h"
 #include "ILocationProvider.h"
 #include "Actor.h"
+#include "IPersistable.h"
 
 class Input;
 enum class EFFECT_TYPE;
@@ -17,13 +18,17 @@ struct Tile
     bool explored{ false }; // has the player already seen this tile ?
 };
 
-class Map : public ILocationProvider
+class Map : public ILocationProvider, IPersistable
 {
 public:
     Map(int width, int height, Input& input, tcod::Console& console);
     virtual ~Map();
 
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
+
     void Init(bool withActors);
+    void SubscribeToEvents();
     void Render() const;
     void Update();
     bool IsExplored(const Point& location) const;

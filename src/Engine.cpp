@@ -6,10 +6,13 @@
 #include "Gui.h"
 #include "CustomEvents.h"
 #include "Popup.h"
+#include "Serialise.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
 static constexpr int GUI_HEIGHT{ 7 };
+static constexpr int SAVEGAME_VERSION{ 0x0001 };
+static const std::string SAVE_FILE{ "game.sav" };
 
 Engine::Engine() : screenWidth(WINDOW_WIDTH), screenHeight(WINDOW_HEIGHT)
 {
@@ -20,26 +23,38 @@ Engine::Engine() : screenWidth(WINDOW_WIDTH), screenHeight(WINDOW_HEIGHT)
 
 Engine::~Engine()
 {
+    Terminate();
+}
+
+void Engine::Terminate()
+{
+    EventManager::GetInstance()->Reset();
     delete map;
+    map = nullptr;
     delete gui;
+    gui = nullptr;
 }
 
 void Engine::Init()
 {
-     map->Init(true);
-     EventManager::GetInstance()->Publish(MessageEvent("Welcome stranger!\nPrepare to perish in the Tombs of the Ancient Kings.", RED));
+    map->Init(true);
+    SubscribeToEvents();
+    EventManager::GetInstance()->Publish(MessageEvent("Welcome stranger!\nPrepare to perish in the Tombs of the Ancient Kings.", RED));
+}
 
-     EventManager::GetInstance()->Subscribe(EventType::PopupLaunched,
-         [&, this](const Event& e)
-         {
-             auto& event = dynamic_cast<const PopupLaunchedEvent&>(e);
-             currentPopup = event.popup;
-         });
+void Engine::SubscribeToEvents()
+{
+    EventManager::GetInstance()->Subscribe(EventType::PopupLaunched,
+        [&, this](const Event& e)
+        {
+            auto event = dynamic_cast<const PopupLaunchedEvent&>(e);
+            currentPopup = event.popup;
+        });
 }
 
 void Engine::Run()
 {
-    Init();
+    Start();
 
     while (true)
     {
@@ -78,6 +93,7 @@ void Engine::Update()
 
     if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
     {
+        Save();
         std::exit(0);
     }
 
@@ -115,4 +131,54 @@ void Engine::InitTcod()
     params.vsync = 1;
     params.sdl_window_flags = SDL_WINDOW_RESIZABLE;
     context = tcod::Context(params);
+}
+
+void Engine::Save() const
+{
+    // Don't save if game has been lost
+    if (gameStatus == GameStatus::DEFEAT)   return;
+
+    Saver saver;
+    saver.InitForSave(SAVE_FILE);
+    // Save version first
+    saver.PutInt(SAVEGAME_VERSION);
+
+    map->Save(saver);
+}
+
+void Engine::Start()
+{
+    if (std::filesystem::exists(SAVE_FILE))
+    {
+        try
+        {
+            Loader loader;
+            loader.LoadFromFile(SAVE_FILE);
+            int version = loader.GetInt();
+            if (version != SAVEGAME_VERSION)
+            {
+                throw std::runtime_error("Incompatible save version");
+            }
+
+            Terminate();
+            SubscribeToEvents();
+            map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler, console);
+            gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
+
+            map->Load(loader);
+            map->ComputeFov();
+        }
+        catch (const std::exception&)
+        {
+            // If loading fails, start a new game
+            map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler, console);
+            gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
+            Init();
+        }
+    }
+    else
+    {
+        // No save file exists, start new game
+        Init();
+    }
 }

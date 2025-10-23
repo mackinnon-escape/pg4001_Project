@@ -1,6 +1,7 @@
 #include "Point.h"
 
 #include <cmath>
+#include "Serialise.h"
 
 const Point Point::Zero{ 0,0 };
 
@@ -34,4 +35,16 @@ Point Point::operator*(const int rhs) const
 bool Point::operator==(const Point& rhs) const
 {
     return x == rhs.x && y == rhs.y;
+}
+
+void Point::Load(Loader& loader)
+{
+    x = loader.GetInt();
+    y = loader.GetInt();
+}
+
+void Point::Save(Saver& saver) const
+{
+    saver.PutInt(x);
+    saver.PutInt(y);
 }

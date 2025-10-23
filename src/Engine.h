@@ -31,9 +31,13 @@ private:
     bool computeFov{ true };
     Popup* currentPopup{ nullptr };
 
+    void Start();
+    void Terminate();
     void Init();
     void InitTcod();
     void HandleInput();
     void Update();  
     void Render();
+    void SubscribeToEvents();
+    void Save() const;
 };

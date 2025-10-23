@@ -5,6 +5,7 @@
 
 #include "Actor.h"
 #include "CustomEvents.h"
+#include "Serialise.h"
 
 bool Pickable::Pick(Actor* pickedItem, Actor* newOwner, std::vector<Actor*>& actors)
 {
@@ -21,13 +22,13 @@ bool Pickable::Pick(Actor* pickedItem, Actor* newOwner, std::vector<Actor*>& act
     return false;
 }
 
-bool Pickable::Use(Actor* usedItem, Actor* user) const
+bool Pickable::Use(Actor* usedItem, Actor* user, ILocationProvider& locationProvider) const
 {
     std::vector<Actor*> targets;
     if (selector)
     {
         auto useCallback = [this](std::vector<Actor*>& targets, Actor* usedItem, Actor* user) -> bool { return this->Use(targets, usedItem, user); };
-        selector->SelectTargets(targets, user, usedItem, useCallback);
+        selector->SelectTargets(targets, user, usedItem, locationProvider, useCallback);
     }
     else
     {
@@ -70,5 +71,45 @@ void Pickable::Drop(Actor* droppedItem, Actor* dropper, std::vector<Actor*>& act
         // Place at dropper's location
         droppedItem->SetLocation(dropper->GetLocation());
         EventManager::GetInstance()->Publish(MessageEvent(dropper->name + " drops a " + droppedItem->name + ".", LIGHT_GREY));
+    }
+}
+
+void Pickable::Save(Saver& saver) const
+{
+    // Save whether we have a selector
+    saver.PutInt(selector ? 1 : 0);
+    if (selector)
+    {
+        selector->Save(saver);
+    }
+
+    // Save whether we have an effect
+    saver.PutInt(effect ? 1 : 0);
+    if (effect)
+    {
+        effect->Save(saver);
+    }
+}
+void Pickable::Load(Loader& loader)
+{
+    bool hasSelector = loader.GetInt();
+    if (hasSelector)
+    {
+        selector = std::make_unique<TargetSelector>(TargetSelector::SelectorType::NONE, -1);
+        selector->Load(loader);
+    }
+    else
+    {
+        selector = nullptr;
+    }
+
+    bool hasEffect = loader.GetInt();
+    if (hasEffect)
+    {
+        effect = Effect::Create(loader);
+    }
+    else
+    {
+        effect = nullptr;
     }
 }

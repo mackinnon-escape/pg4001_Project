@@ -2,6 +2,7 @@
 #include <string>
 #include "Actor.h"
 #include "CustomEvents.h"
+#include "Serialise.h"
 
 void Attacker::Attack(const Actor* owner, Actor* target) const
 {
@@ -22,4 +23,16 @@ void Attacker::Attack(const Actor* owner, Actor* target) const
     {
         EventManager::GetInstance()->Publish(MessageEvent(owner->name + " attacks " + target->name + " in vain.", messageColour));
     }
+}
+
+void Attacker::Save(Saver& saver) const
+{
+    saver.PutInt(power);
+    saver.PutColor(&messageColour);
+}
+
+void Attacker::Load(Loader& loader)
+{
+    power = loader.GetInt();
+    messageColour = loader.GetColor();
 }

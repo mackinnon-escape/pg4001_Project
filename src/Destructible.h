@@ -1,9 +1,11 @@
 #pragma once
 
 #include <string>
+#include "IPersistable.h"
+
 class Actor;
 
-class Destructible
+class Destructible : IPersistable
 {
 public:
     int defense;
@@ -18,7 +20,15 @@ public:
     int TakeDamage(Actor* owner, int damage);
     virtual void Die(Actor* owner);
     int Heal(int amount);
+    // IPersistable
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
+    static Destructible* Create(Loader& loader);
 protected:
+    enum DestructibleType
+    {
+        MONSTER, PLAYER
+    };
     virtual void NotifyHealthChanged() const {}
 
     int maxHp;
@@ -32,6 +42,7 @@ public:
         : Destructible(maxHp, defense, corpseName) {
     }
     void Die(Actor* owner);
+    void Save(Saver& saver) const override;
 };
 
 class PlayerDestructible : public Destructible
@@ -39,6 +50,8 @@ class PlayerDestructible : public Destructible
 public:
     PlayerDestructible(int maxHp, int defense, const std::string& corpseName);
     void Die(Actor* owner);
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
 private:
     void NotifyHealthChanged() const override;
 };

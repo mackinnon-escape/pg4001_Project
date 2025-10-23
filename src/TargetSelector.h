@@ -2,11 +2,12 @@
 
 #include <vector>
 #include <functional>
+#include "IPersistable.h"
 
 class Actor;
 class ILocationProvider;
 
-class TargetSelector
+class TargetSelector : IPersistable
 {
 public:
     enum class SelectorType
@@ -18,11 +19,12 @@ public:
         SELECTED_RANGE     // All enemies within range of selected point
     };
 
-    TargetSelector(SelectorType type, int range, ILocationProvider& locationProvider) : selectorType(type), range(range), locationProvider(locationProvider) {}
-    bool SelectTargets(std::vector<Actor*>& targets, Actor* wearer, Actor* source, std::function<bool(std::vector<Actor*>&, Actor*, Actor*)> callback) const;
+    TargetSelector(SelectorType type, int range) : selectorType(type), range(range) {}
+    bool SelectTargets(std::vector<Actor*>& targets, Actor* wearer, Actor* source, ILocationProvider& locationProvider, std::function<bool(std::vector<Actor*>&, Actor*, Actor*)> callback) const;
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
 protected:
     SelectorType selectorType;
     int range{ -1 };
-    ILocationProvider& locationProvider;
     int cachedEventHandle{ 0 };
 };

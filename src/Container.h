@@ -1,9 +1,11 @@
 #pragma once
 
 #include <vector>
+#include "IPersistable.h"
+
 class Actor;
 
-class Container
+class Container : IPersistable
 {
 public:
     int maxSize; // maximum number of actors. 0=unlimited
@@ -13,5 +15,8 @@ public:
     virtual ~Container();
     bool Add(Actor* actor);
     void Remove(Actor* actor);
+
+    void Save(Saver& saver) const override;
+    void Load(Loader& loader) override;
 private:
 };
