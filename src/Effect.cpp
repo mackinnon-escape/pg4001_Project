@@ -108,6 +108,7 @@ void AiChangeEffect::Save(Saver& saver) const
 
 void AiChangeEffect::Load(Loader& loader)
 {
+    loader.GetInt();    // we need to remove the int that specifies that our Ai class is a TemporaryAi...
     newAi = new TemporaryAi<ConfusedMonsterAi>(1);
     newAi->Load(loader);
     message = loader.GetString();
