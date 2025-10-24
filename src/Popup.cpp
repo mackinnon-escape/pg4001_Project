@@ -66,6 +66,6 @@ void InventoryPopup::Render(tcod::Console& mainConsole)
         }
     }
 
-    tcod::blit(mainConsole, console, { (mainConsole.get_width() - INVENTORY_WIDTH) / 2, (mainConsole.get_height() - INVENTORY_WIDTH) / 2 },
+    tcod::blit(mainConsole, console, { (mainConsole.get_width() - INVENTORY_WIDTH) / 2, (mainConsole.get_height() - INVENTORY_HEIGHT) / 2 },
         { 0, 0, console.get_width(), console.get_height() });
 }
