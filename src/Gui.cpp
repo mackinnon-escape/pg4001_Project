@@ -72,7 +72,7 @@ void Gui::RenderBar(int x, int y, int width, const std::string& name, int value,
 void Gui::RenderMouseLook(Input& input, ILocationProvider& locationProvider)
 {
     Point mouseLocation{ input.GetMouseLocation() };
-    if (locationProvider.IsInFov(mouseLocation)) 
+    if (!locationProvider.IsInFov(mouseLocation))
     {
         // if mouse is out of fov, nothing to render
         return;
