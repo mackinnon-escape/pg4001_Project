@@ -32,3 +32,8 @@ TargetingCompletedEvent::TargetingCompletedEvent(Point selectedLocation, bool su
 {
     type = EventType::TargetingCompleted;
 }
+
+GameOverEvent::GameOverEvent(const std::string& reason) : reason(reason)
+{
+    type = EventType::GameOver;
+}

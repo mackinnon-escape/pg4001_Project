@@ -7,12 +7,12 @@
 class Map;
 class Gui;
 class Popup;
+class GameMenu;
 
 class Engine
 {
 public:
-    enum GameStatus { STARTUP, IDLE, NEW_TURN, VICTORY, DEFEAT, POPUP, MENU } gameStatus{ STARTUP };
-
+    enum GameStatus { STARTUP, IDLE, VICTORY, DEFEAT, POPUP, MENU } gameStatus{ STARTUP };
     Engine();
     ~Engine();
 
@@ -30,14 +30,19 @@ private:
     int screenHeight;
     bool computeFov{ true };
     Popup* currentPopup{ nullptr };
+    GameMenu* currentMenu{ nullptr };
 
-    void Start();
+    void Load();
     void Terminate();
     void Init();
     void InitTcod();
     void HandleInput();
     void Update();  
+    void GameMenuUpdate();
     void Render();
     void SubscribeToEvents();
     void Save() const;
+    void ShowMenu();
+    bool IsSaveGameValid();
+    void GameOver();
 };

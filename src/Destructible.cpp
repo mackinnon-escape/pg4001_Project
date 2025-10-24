@@ -98,8 +98,9 @@ PlayerDestructible::PlayerDestructible(int maxHp, int defense, const std::string
 
 void PlayerDestructible::Die(Actor* owner)
 {
-    EventManager::GetInstance()->Publish(MessageEvent("You died!", RED));
     Destructible::Die(owner);
+    EventManager::GetInstance()->Publish(MessageEvent("You died!", RED));
+    EventManager::GetInstance()->Publish(GameOverEvent("You died!"));
 }
 
 void PlayerDestructible::NotifyHealthChanged() const

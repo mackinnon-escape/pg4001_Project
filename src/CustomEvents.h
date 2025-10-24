@@ -49,3 +49,9 @@ struct TargetingCompletedEvent : Event
     Point selectedLocation;
     bool success;
 };
+
+struct GameOverEvent : Event
+{
+    GameOverEvent(const std::string& reason);
+    std::string reason;
+};

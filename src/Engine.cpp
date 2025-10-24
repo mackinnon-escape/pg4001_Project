@@ -1,12 +1,17 @@
 #include "Engine.h"
 
+#include <filesystem>
+#include <cassert>
+
 #include "SDL3/SDL.h"
+
 #include "Colours.h"
 #include "Map.h"
 #include "Gui.h"
 #include "CustomEvents.h"
 #include "Popup.h"
 #include "Serialise.h"
+#include "Menu.h"
 
 constexpr int WINDOW_WIDTH{ 80 };
 constexpr int WINDOW_HEIGHT{ 50 };
@@ -17,13 +22,12 @@ static const std::string SAVE_FILE{ "game.sav" };
 Engine::Engine() : screenWidth(WINDOW_WIDTH), screenHeight(WINDOW_HEIGHT)
 {
     InitTcod();
-    gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
-    map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler, console);
 }
 
 Engine::~Engine()
 {
     Terminate();
+    delete currentMenu;
 }
 
 void Engine::Terminate()
@@ -40,6 +44,7 @@ void Engine::Init()
     map->Init(true);
     SubscribeToEvents();
     EventManager::GetInstance()->Publish(MessageEvent("Welcome stranger!\nPrepare to perish in the Tombs of the Ancient Kings.", RED));
+    gameStatus = STARTUP;
 }
 
 void Engine::SubscribeToEvents()
@@ -47,14 +52,21 @@ void Engine::SubscribeToEvents()
     EventManager::GetInstance()->Subscribe(EventType::PopupLaunched,
         [&, this](const Event& e)
         {
-            auto event = dynamic_cast<const PopupLaunchedEvent&>(e);
+            const auto& event = dynamic_cast<const PopupLaunchedEvent&>(e);
             currentPopup = event.popup;
+            gameStatus = POPUP;
+        });
+
+    EventManager::GetInstance()->Subscribe(EventType::GameOver,
+        [&, this](const Event&)
+        {
+            GameOver();
         });
 }
 
 void Engine::Run()
 {
-    Start();
+    ShowMenu();
 
     while (true)
     {
@@ -74,40 +86,80 @@ void Engine::HandleInput()
 
 void Engine::Update()
 {
-    if (gameStatus == STARTUP)
+    switch (gameStatus)
     {
-        map->ComputeFov();
-    }
-    
-    gameStatus = IDLE;
-    if (currentPopup != nullptr)
-    {
+    case MENU:
+        GameMenuUpdate();
+        break;
+    case POPUP:
         currentPopup->Update();
         if (currentPopup->IsDone())
         {
             delete currentPopup;
             currentPopup = nullptr;
+            gameStatus = IDLE;
         }
-        return; // Skip updating the game while a popup is active
+        break;
+    case STARTUP:
+        map->ComputeFov();
+        gameStatus = IDLE;
+        break;
+    case DEFEAT:
+    case IDLE:
+        if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
+        {
+            Save();
+            ShowMenu();
+            return;
+        }
+        map->Update();
+        break;
+    default:
+        break;
     }
+}
 
-    if (inputHandler.GetKeyCode() == SDLK_ESCAPE)
+void Engine::GameMenuUpdate()
+{
+    Menu::MenuItemCode selection = currentMenu->GetMenuSelection(inputHandler);
+
+    switch (selection)
     {
-        Save();
+    case Menu::NEW_GAME:
+        delete currentMenu;
+        currentMenu = nullptr;
+        Terminate();
+        // Recreate map for new game
+        map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler, console);
+        gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
+        Init();
+        break;
+    case Menu::CONTINUE:
+        delete currentMenu;
+        currentMenu = nullptr;
+        Load();
+        break;
+    case Menu::EXIT:
         std::exit(0);
+        break;
+    default:
+        // Don't cleanup if no selection was made
+        break;
     }
-
-    map->Update();
 }
 
 void Engine::Render()
 {
-    if (currentPopup != nullptr)
+    switch (gameStatus)
     {
+    case MENU:
+        currentMenu->Render(console);
+        break;
+    case POPUP:
         currentPopup->Render(console);
-    }
-    else
-    {
+        break;
+    case IDLE:
+    case DEFEAT:
         console.clear();
 
         map->Render();
@@ -136,7 +188,14 @@ void Engine::InitTcod()
 void Engine::Save() const
 {
     // Don't save if game has been lost
-    if (gameStatus == GameStatus::DEFEAT)   return;
+    if (gameStatus == GameStatus::DEFEAT)
+    {
+        if (std::filesystem::exists(SAVE_FILE))
+        {
+            std::filesystem::remove(SAVE_FILE);
+        }
+        return;
+    }
 
     Saver saver;
     saver.InitForSave(SAVE_FILE);
@@ -146,7 +205,7 @@ void Engine::Save() const
     map->Save(saver);
 }
 
-void Engine::Start()
+void Engine::Load()
 {
     if (std::filesystem::exists(SAVE_FILE))
     {
@@ -170,15 +229,52 @@ void Engine::Start()
         }
         catch (const std::exception&)
         {
+            assert(false);
+
             // If loading fails, start a new game
             map = new Map(screenWidth, screenHeight - GUI_HEIGHT, inputHandler, console);
             gui = new Gui(Point(0, screenHeight - GUI_HEIGHT), screenWidth, GUI_HEIGHT, console);
             Init();
         }
-    }
-    else
-    {
-        // No save file exists, start new game
-        Init();
+        gameStatus = IDLE;
     }
 }
+
+void Engine::ShowMenu()
+{
+    if (currentMenu == nullptr)
+    {
+        currentMenu = new GameMenu();
+    }
+    currentMenu->Initialise(IsSaveGameValid());
+
+    gameStatus = MENU;
+}
+
+bool Engine::IsSaveGameValid()
+{
+    if (std::filesystem::exists(SAVE_FILE))
+    {
+        try
+        {
+            Loader loader;
+            loader.LoadFromFile(SAVE_FILE);
+            int version = loader.GetInt();
+            if (version == SAVEGAME_VERSION)
+            {
+                return true;
+            }
+        }
+        catch (const std::exception&)
+        {
+            // Invalid save file, don't add continue option
+        }
+    }
+
+    return false;
+}
+
+void Engine::GameOver()
+{
+    gameStatus = DEFEAT;
+ }
