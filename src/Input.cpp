@@ -1,6 +1,5 @@
 #include "Input.h"
 
-#include "Input.h"
 #include <cstdlib>
 
 bool Input::CheckForEvent(tcod::Context& context)
