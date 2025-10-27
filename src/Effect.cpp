@@ -82,6 +82,11 @@ void HealthEffect::Load(Loader& loader)
     message = loader.GetString();
 }
 
+AiChangeEffect::~AiChangeEffect()
+{
+    delete newAi;
+}
+
 bool AiChangeEffect::ApplyTo(Actor* actor)
 {
     if (newAi != nullptr && actor != nullptr && actor->ai != nullptr)

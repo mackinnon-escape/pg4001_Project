@@ -45,7 +45,7 @@ class AiChangeEffect : public Effect
 {
 public:
     AiChangeEffect(TemporaryAi<ConfusedMonsterAi>* newAi, const std::string& message) : newAi(newAi), message(message) {}
-    virtual ~AiChangeEffect() = default;  // No manual delete needed anymore
+    ~AiChangeEffect();  // No manual delete needed anymore
     bool ApplyTo(Actor* actor);
     EFFECT_TYPE GetType() const override { return EFFECT_TYPE::AI_CHANGE; }
     void Save(Saver& saver) const override;

@@ -12,6 +12,7 @@ public:
     void Attack(const Actor* owner, Actor* target) const;
     void Save(Saver& saver) const override;
     void Load(Loader& loader) override;
+    void BoostPower() { power++; }
 private:
     int power;
     TCODColor messageColour{};

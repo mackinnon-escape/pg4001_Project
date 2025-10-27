@@ -37,6 +37,15 @@ void Gui::SubscribeToEvents()
             const auto& msgEvent = static_cast<const MessageEvent&>(e);
             AddMessage(msgEvent.message, msgEvent.col);
         });
+
+    EventManager::GetInstance()->Subscribe(EventType::UpdateLevelAndXP,
+        [&, this](const Event& e)
+        {
+            const auto& levelEvent = static_cast<const UpdateLevelAndXPEvent&>(e);
+            xpData.level = levelEvent.level;
+            xpData.currentXp = levelEvent.currentXp;
+            xpData.xpForNextLevel = levelEvent.xpForNextLevel;
+        });
 }
 
 
@@ -46,8 +55,13 @@ void Gui::Render(Input& input, ILocationProvider& locationProvider)
         
     // draw the health bar
     RenderBar(1, 1, BAR_WIDTH, "HP", healthData.currentHp, healthData.maxHp, LIGHT_RED, DARKER_RED);
-    RenderMessages();
 
+    // draw XP display showing level progress
+    char xpText[64];
+    snprintf(xpText, sizeof(xpText), "XP: %d/%d (Level %d)", xpData.currentXp, xpData.xpForNextLevel, xpData.level);
+    tcod::print(console, { 1, 3 }, xpText, LIGHT_VIOLET, std::nullopt);
+
+    RenderMessages();
     RenderMouseLook(input, locationProvider);
 
     // blit the GUI console on the root console

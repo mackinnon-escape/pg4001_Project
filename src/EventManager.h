@@ -11,7 +11,10 @@ enum class EventType
     GameOver,
     PopupLaunched,
     TargetingRequested,
-    TargetingCompleted
+    TargetingCompleted,
+    XPGained,
+    LevelChanging,
+    UpdateLevelAndXP
 };
 
 struct Event

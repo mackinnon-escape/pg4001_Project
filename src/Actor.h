@@ -41,10 +41,12 @@ public:
     int TakeDamage(int damage);
     bool IsAlive() const { return destructible && !destructible->IsDead(); }
     void Attack(Actor* target) const { if (attacker) attacker->Attack(this, target); }
+    void BoostPower() { if (attacker) attacker->BoostPower(); }
     int GetDefense() const { return destructible ? destructible->defense : 0; }
     int Heal(int amount) { return destructible != nullptr ? destructible->Heal(amount) : 0; }
     bool AddToContainer(Actor* item) { return container ? container->Add(item) : false; }
     bool RemoveFromContainer(Actor* item);
+
 
     Destructible* destructible{ nullptr }; // something that can be damaged
     Attacker* attacker{ nullptr };

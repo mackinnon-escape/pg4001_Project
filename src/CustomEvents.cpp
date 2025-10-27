@@ -37,3 +37,19 @@ GameOverEvent::GameOverEvent(const std::string& reason) : reason(reason)
 {
     type = EventType::GameOver;
 }
+
+XPGainedEvent::XPGainedEvent(int xpAmount) : xpAmount(xpAmount)
+{
+    type = EventType::XPGained;
+}
+
+LevelChangingEvent::LevelChangingEvent(int newLevel) : newLevel(newLevel)
+{
+    type = EventType::LevelChanging;
+}
+
+UpdateLevelAndXPEvent::UpdateLevelAndXPEvent(int level, int currentXp, int xpForNextLevel)
+    : level(level), currentXp(currentXp), xpForNextLevel(xpForNextLevel)
+{
+    type = EventType::UpdateLevelAndXP;
+}

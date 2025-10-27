@@ -142,27 +142,27 @@ bool PlayerAi::HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvid
 
     case 'i': // display inventory
     {
-        auto inventoryPopup = new InventoryPopup(owner,
+        auto inventoryPopup = new InventoryPopup(owner, input,
             [&](Actor* item, Actor* owner) -> void
             {
                 if (item->pickable)
                 {
                     item->pickable->Use(item, owner, locationProvider);
                 }
-            }, input);
+            });
         EventManager::GetInstance()->Publish(PopupLaunchedEvent(inventoryPopup));
     }
     break;
     case 'd': // drop item
     {
-        auto dropPopup = new InventoryPopup(owner,
+        auto dropPopup = new InventoryPopup(owner, input,
             [&](Actor* item, Actor* owner) -> void
             {
                 if (item && item->pickable && owner)
                 {
                     Pickable::Drop(item, owner, locationProvider.GetActors());
                 }
-            }, input);
+            });
         EventManager::GetInstance()->Publish(PopupLaunchedEvent(dropPopup));
         return true;
     }

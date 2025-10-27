@@ -55,3 +55,23 @@ struct GameOverEvent : Event
     GameOverEvent(const std::string& reason);
     std::string reason;
 };
+
+struct XPGainedEvent : Event
+{
+    XPGainedEvent(int amount);
+    int xpAmount;
+};
+
+struct LevelChangingEvent : Event
+{
+    LevelChangingEvent(int newLevel);
+    int newLevel;
+};
+
+struct UpdateLevelAndXPEvent : Event
+{
+    UpdateLevelAndXPEvent(int level, int currentXp, int xpForNext);
+    int level;
+    int currentXp;
+    int xpForNextLevel;
+};

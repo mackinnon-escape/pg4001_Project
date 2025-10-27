@@ -371,7 +371,7 @@ void Map::AddMonster(const Point& location)
     {
         // create an orc
         Actor* orc = new Actor(location, 'o', "orc", DESATURATED_GREEN);
-        orc->destructible = new MonsterDestructible(10, 0, "dead orc");
+        orc->destructible = new MonsterDestructible(10, 0, 35, "dead orc");
         orc->attacker = new Attacker(3, LIGHT_GREY);
         orc->ai = std::make_unique<MonsterAi>();
         actors.push_back(orc);
@@ -380,7 +380,7 @@ void Map::AddMonster(const Point& location)
     {
         // create a troll
         Actor* troll = new Actor(location, 'T', "troll", DARKER_GREEN);
-        troll->destructible = new MonsterDestructible(16, 1, "troll carcass");
+        troll->destructible = new MonsterDestructible(16, 1, 100, "troll carcass");
         troll->attacker = new Attacker(4, LIGHT_GREY);
         troll->ai = std::make_unique<MonsterAi>();
         actors.push_back(troll);

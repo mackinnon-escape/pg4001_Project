@@ -25,6 +25,13 @@ protected:
         TCODColor col;
     };
 
+    struct XPBarData
+    {
+        int currentXp{ 0 };
+        int level{ 1 };
+        int xpForNextLevel{ 200 };  // Initial value, will be updated via events
+    } xpData;
+
 public:
     Gui(const Point pos, const int width, const int height, tcod::Console& main);
     virtual ~Gui() = default;

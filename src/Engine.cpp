@@ -62,6 +62,17 @@ void Engine::SubscribeToEvents()
         {
             GameOver();
         });
+
+    EventManager::GetInstance()->Subscribe(EventType::LevelChanging,
+        [&, this](const Event& e)
+        {
+            const auto& levelUpEvent = static_cast<const LevelChangingEvent&>(e);
+            if (map && map->GetPlayer())
+            {
+                LevelUpPopup* levelUpPopup = new LevelUpPopup(map->GetPlayer(), inputHandler, levelUpEvent.newLevel);
+                EventManager::GetInstance()->Publish(PopupLaunchedEvent(levelUpPopup));
+            }
+        });
 }
 
 void Engine::Run()
