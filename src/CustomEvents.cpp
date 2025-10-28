@@ -53,3 +53,8 @@ UpdateLevelAndXPEvent::UpdateLevelAndXPEvent(int level, int currentXp, int xpFor
 {
     type = EventType::UpdateLevelAndXP;
 }
+
+DungeonLevelChangedEvent::DungeonLevelChangedEvent(int newLevel) : newLevel(newLevel)
+{
+    type = EventType::DungeonLevelChanged;
+}

@@ -20,6 +20,7 @@ public:
 	virtual Actor* GetPlayer() const = 0;
 	virtual std::vector<Actor*> GetActorsAt(const Point& p) const = 0;
 	virtual std::vector<Actor*>& GetActors() = 0;
+	virtual void NextDungeonLevel() = 0;
 };
 
 #endif // ILOCAITON_PROVIDER

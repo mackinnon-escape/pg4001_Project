@@ -75,3 +75,9 @@ struct UpdateLevelAndXPEvent : Event
     int currentXp;
     int xpForNextLevel;
 };
+
+struct DungeonLevelChangedEvent : Event
+{
+    DungeonLevelChangedEvent(int newLevel);
+    int newLevel;
+};

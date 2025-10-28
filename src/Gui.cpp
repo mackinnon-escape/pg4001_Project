@@ -46,6 +46,12 @@ void Gui::SubscribeToEvents()
             xpData.currentXp = levelEvent.currentXp;
             xpData.xpForNextLevel = levelEvent.xpForNextLevel;
         });
+    EventManager::GetInstance()->Subscribe(EventType::DungeonLevelChanged,
+        [&, this](const Event& e)
+        {
+            const auto& dungeonEvent = static_cast<const DungeonLevelChangedEvent&>(e);
+            dungeonLevel = dungeonEvent.newLevel;
+        });
 }
 
 
@@ -60,6 +66,11 @@ void Gui::Render(Input& input, ILocationProvider& locationProvider)
     char xpText[64];
     snprintf(xpText, sizeof(xpText), "XP: %d/%d (Level %d)", xpData.currentXp, xpData.xpForNextLevel, xpData.level);
     tcod::print(console, { 1, 3 }, xpText, LIGHT_VIOLET, std::nullopt);
+
+    // draw dungeon level
+    char dungeonText[32];
+    snprintf(dungeonText, sizeof(dungeonText), "Dungeon level: %d", dungeonLevel);
+    tcod::print(console, { 1, 4 }, dungeonText, LIGHT_GREY, std::nullopt);
 
     RenderMessages();
     RenderMouseLook(input, locationProvider);

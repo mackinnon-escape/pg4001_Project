@@ -52,6 +52,7 @@ protected:
     int guiHeight{ 0 };
     int guiWidth{ 0 };
     Point position{ 0,0 };
+    int dungeonLevel{ 1 };
 };
 
 #endif // GUI_H

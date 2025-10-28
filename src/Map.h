@@ -45,7 +45,7 @@ public:
     Point GetPlayerLocation() const  override { return player->GetLocation(); }
     std::vector<Actor*> GetActorsAt(const Point& p) const override;
     std::vector<Actor*>& GetActors() { return actors; }
-
+    int GetDungeonLevel() const { return dungeonLevel; }
 private:
     Tile* tiles{ nullptr };
     int width;
@@ -59,6 +59,8 @@ private:
     tcod::Console& console;
     bool isPickingATile{ false };
     int maxPickingRange{ -1 };
+    Actor* stairs{ nullptr };
+    int dungeonLevel{ 1 }; 
     friend class BspCallback;
 
     void Dig(const Point& corner1, const Point& corner2) const;
@@ -70,6 +72,9 @@ private:
         const TargetSelector::SelectorType selectorType, const int range, const EFFECT_TYPE effectType, const std::string& description,
         const int amount, const int duration = 0, const int aiChangeType = 0);
     void HandleTileSelected();
+    void CreateStairs(const Point& location);
+    void NextDungeonLevel();
+    void RenderActors() const;
 };
 
 class BspCallback : public ITCODBspCallback
@@ -77,10 +82,13 @@ class BspCallback : public ITCODBspCallback
 public:
     BspCallback(Map& map) : map(map), roomNumber(0) {}
     bool visitNode(TCODBsp* node, void* userdata) override;
+    Point GetPreviousRoomLocation() const { return previousLocation; }
+    Point GetFirstRoomLocation() const { return firstLocation; }
 
 private:
     Map& map;                    // Reference to map to modify
     int roomNumber{ 0 };         // Room counter for first room detection
     Point previousLocation{};   // Center of the last room created
+    Point firstLocation{};
 };
 #endif // MAP_H

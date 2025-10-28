@@ -14,7 +14,8 @@ enum class EventType
     TargetingCompleted,
     XPGained,
     LevelChanging,
-    UpdateLevelAndXP
+    UpdateLevelAndXP,
+    DungeonLevelChanged
 };
 
 struct Event

@@ -64,6 +64,7 @@ void Actor::Save(Saver& saver) const
     saver.PutColor(&colour);
     saver.PutString(name);
     saver.PutInt(blocks ? 1 : 0);
+    saver.PutInt(fovOnly ? 1 : 0);
 
     saver.PutInt(attacker != nullptr);
     saver.PutInt(destructible != nullptr);
@@ -85,6 +86,7 @@ void Actor::Load(Loader& loader)
     colour = loader.GetColor();
     name = loader.GetString();
     blocks = loader.GetInt();
+    fovOnly = loader.GetInt();
 
     bool hasAttacker = loader.GetInt();
     bool hasDestructible = loader.GetInt();

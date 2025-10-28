@@ -166,6 +166,25 @@ bool PlayerAi::HandleActionKey(Actor* owner, unsigned int ascii, ILocationProvid
         EventManager::GetInstance()->Publish(PopupLaunchedEvent(dropPopup));
         return true;
     }
+    case '.': // climb down stairs
+    {
+        if (input.IsShiftKeyPressed()) // Shift with '.' == '>'
+        {
+            // Check if player is standing on stairs
+            for (auto actor : locationProvider.GetActorsAt(owner->GetLocation()))
+            {
+                if (actor->name == "stairs down")
+                {
+                    locationProvider.NextDungeonLevel();
+                    return true;
+                }
+            }
+            EventManager::GetInstance()->Publish(MessageEvent("There are no stairs here.", LIGHT_GREY));
+        }
+        return true;
+    }
+    default:
+        break;
     }
     return false;
 }

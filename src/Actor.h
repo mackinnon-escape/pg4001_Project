@@ -57,6 +57,7 @@ public:
     std::string name{};
     bool blocks{ true };
     bool hasActedThisFrame{ false };
+    bool fovOnly{ false };
 private:
     Point position{ Point::Zero };
     int ch{ 0 }; // ascii code

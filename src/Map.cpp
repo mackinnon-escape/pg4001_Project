@@ -51,6 +51,12 @@ void Map::Init(bool withActors)
     map = new TCODMap(width, height);
     bsp.splitRecursive(rng, 8, ROOM_MAX_SIZE, ROOM_MAX_SIZE, 1.5f, 1.5f);
     bsp.traverseInvertedLevelOrder(&listener, static_cast<void*>(&withActors));
+
+    // Create stairs in the last room when generating a level with actors
+    if (withActors)
+    {
+        CreateStairs(listener.GetPreviousRoomLocation());
+    }
 }
 
 void Map::SubscribeToEvents()
@@ -146,9 +152,18 @@ void Map::Render() const
         }
     }
 
-     for (auto actor : actors)
+    RenderActors();
+}
+
+void Map::RenderActors() const
+{
+    for (auto actor : actors)
     {
-        if (IsInFov(actor->GetLocation()))
+        bool inFov = IsInFov(actor->GetLocation());
+        bool explored = IsExplored(actor->GetLocation());
+        // fovOnly actors (like stairs) only render when in field of view
+        // Other actors render when in FOV or when location has been explored
+        if ((actor->fovOnly && inFov) || (!actor->fovOnly && (inFov || explored)))
         {
             actor->Render(console);
         }
@@ -365,6 +380,69 @@ void Map::CreateRoom(const bool first, const Point& corner1, const Point& corner
     }
 }
 
+void Map::CreateStairs(const Point& location)
+{
+    stairs = new Actor(location, '>', "stairs down", WHITE);
+    stairs->blocks = false;
+    stairs->fovOnly = true;
+    actors.push_back(stairs);
+}
+
+void Map::NextDungeonLevel()
+{
+    // Increment dungeon level
+    dungeonLevel++;
+    // Remove all actors except player and stairs from the actors list
+    auto it = actors.begin();
+    while (it != actors.end())
+    {
+        if (*it != player && *it != stairs)
+        {
+            delete* it;
+            it = actors.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // Clean up tiles and map
+    delete[] tiles;
+    delete map;
+
+    // Generate new seed for the new level
+    seed = rng->getInt(0, LONG_MAX);
+    delete rng;
+
+    // Create new level
+    long area{ width * height };
+    tiles = new Tile[area];
+    map = new TCODMap(width, height);
+    rng = new TCODRandom(seed, TCOD_RNG_CMWC);
+
+    // Generate new rooms and corridors
+    TCODBsp bsp(0, 0, width, height);
+    BspCallback listener(*this);
+    bsp.splitRecursive(rng, 8, ROOM_MAX_SIZE, ROOM_MAX_SIZE, 1.5f, 1.5f);
+    bool withActors = true;
+    bsp.traverseInvertedLevelOrder(&listener, static_cast<void*>(&withActors));
+
+    // Place player in the first room
+    Point playerStart = listener.GetFirstRoomLocation();
+    player->SetLocation(playerStart);
+
+    // Update stairs location to the last room
+    stairs->SetLocation(listener.GetPreviousRoomLocation());
+
+    // Publish event to notify GUI of level change
+    EventManager::GetInstance()->Publish(DungeonLevelChangedEvent(dungeonLevel));
+    EventManager::GetInstance()->Publish(MessageEvent("You descend to dungeon level " + std::to_string(dungeonLevel) + ".", YELLOW));
+
+    // Recompute field of view for the new level
+    ComputeFov();
+}
+
 void Map::AddMonster(const Point& location)
 {
     if (rng->getInt(0, 100) < 80)
@@ -463,6 +541,7 @@ void Map::Save(Saver& saver) const
     saver.PutInt(seed);
     saver.PutInt(width);
     saver.PutInt(height);
+    saver.PutInt(dungeonLevel);
 
     // Save the complete map state
     for (int i = 0; i < width * height; i++)
@@ -475,11 +554,9 @@ void Map::Save(Saver& saver) const
      player->Save(saver);
      int otherActorCount = static_cast<int>(actors.size()) - 1;    // Save all other actors (excluding player)
      saver.PutInt(otherActorCount);
-    //int actorCount = static_cast<int>(actors.size());
-    //saver.PutInt(actorCount);
+    
     for (auto actor : actors)
     {
-        //actor->Save(saver);
          if (actor != player)
          {
              actor->Save(saver);
@@ -505,6 +582,7 @@ void Map::Load(Loader& loader)
     map = new TCODMap(width, height);
     rng = new TCODRandom(seed, TCOD_RNG_CMWC);
 
+    dungeonLevel = loader.GetInt();
     // Load the saved map state
     for (int i = 0; i < area; i++)
     {
@@ -529,10 +607,12 @@ void Map::Load(Loader& loader)
         Actor* actor = new Actor{};
         actor->Load(loader);
         actors.push_back(actor);
- /*       if (actor->name == "player")
+
+        // Check if this is the stairs actor    
+        if (actor->name == "stairs down")
         {
-            player = actor;
-        }*/
+            stairs = actor;
+        }
     }
 }
 
@@ -552,18 +632,22 @@ bool BspCallback::visitNode(TCODBsp* node, void* userData)
         map.CreateRoom(roomNumber == 0, upperLeft, lowerRight, withActors);
 
 
-        Point roomMiddle{ x + w / 2, y + h / 2 };
-        if (roomNumber != 0)
+        Point middleOfRoom{ x + w / 2, y + h / 2 };
+        if (roomNumber == 0)
+        {
+            firstLocation = middleOfRoom;
+        }
+        else // if (roomNumber != 0)
         {
             // dig a corridor from last room
             // hall goes from centre of previous room to middleHallPoint
             // and then on to the middle of the current room
             Point hallMiddle{ x + w / 2, previousLocation.y };
             map.Dig(previousLocation, hallMiddle);
-            map.Dig(hallMiddle, roomMiddle);
+            map.Dig(hallMiddle, middleOfRoom);
         }
 
-        previousLocation = roomMiddle;
+        previousLocation = middleOfRoom;
         roomNumber++;
     }
     return true;
